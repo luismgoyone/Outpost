@@ -18,6 +18,7 @@ test("Overview shows attention tiles and repo health cards", async ({ page, sign
   await expect(card).toContainText("2 open");
   await expect(card).toContainText("Passing"); // main CI
   await expect(card).toContainText("75%"); // merge rate: 3 of 4 closed PRs merged
+  await expect(card).toContainText(/Prod deploy\s*42m ago · Success/);
   await expect(card).toContainText("3 PRs/wk");
   await expect(
     card.getByRole("img", { name: /billing: pull requests opened per week/ }),

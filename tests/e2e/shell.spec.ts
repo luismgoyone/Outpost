@@ -1,7 +1,6 @@
 import { expect, test } from "./support/fixtures";
 
 const SCREENS = [
-  { label: "Deployments", path: "/deployments", issue: "#4" },
   { label: "Releases", path: "/releases", issue: "#5" },
   { label: "Settings", path: "/settings", issue: "#16" },
 ];
@@ -28,7 +27,13 @@ test("sidebar navigates every section and marks the active one", async ({ page, 
 });
 
 test("every section requires sign-in", async ({ page }) => {
-  for (const path of [...SCREENS.map((s) => s.path), "/pull-requests", "/my-work", "/overview"]) {
+  for (const path of [
+    ...SCREENS.map((s) => s.path),
+    "/pull-requests",
+    "/my-work",
+    "/overview",
+    "/deployments",
+  ]) {
     await page.goto(path);
     await expect(page).toHaveURL(/\/api\/auth\/signin/);
   }
