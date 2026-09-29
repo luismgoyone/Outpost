@@ -4,7 +4,8 @@
  * owns its repos (tests run in parallel against one database):
  *   storefront → connect-repo flow · docs → empty state and visitor leak · api, legacy → PR screen
  *   mobile → My Work (review request, my PR with changes requested, stale PR, failing main)
- *   billing → Overview (language, release, PR history for sparklines, a failing PR)
+ *   billing → Overview (language, release, PR history for sparklines, a failing PR, prod deploy)
+ *   marketing → Deployments (production, preview building, staging failed, superseded preview)
  * "legacy" always fails its GraphQL query, to exercise per-repo error handling.
  * Run directly with Node (type stripping): node tests/e2e/support/mock-github.mts
  */
@@ -14,6 +15,9 @@ const port = Number(process.env.MOCK_GITHUB_PORT ?? 4010);
 const INSTALLATION_ID = 4242;
 const owner = { login: "acme" };
 
+const HOUR = 3600_000;
+const ago = (ms: number) => new Date(Date.now() - ms).toISOString();
+
 const repositories = [
   { id: 1, name: "storefront", full_name: "acme/storefront", owner, private: true },
   { id: 2, name: "docs", full_name: "acme/docs", owner, private: false },
@@ -21,7 +25,53 @@ const repositories = [
   { id: 4, name: "legacy", full_name: "acme/legacy", owner, private: false },
   { id: 5, name: "mobile", full_name: "acme/mobile", owner, private: true },
   { id: 6, name: "billing", full_name: "acme/billing", owner, private: true },
+  { id: 7, name: "marketing", full_name: "acme/marketing", owner, private: false },
 ];
+
+function deployment(
+  id: string,
+  environment: string,
+  state: string,
+  createdMinutesAgo: number,
+  extra: { durationSec?: number; message?: string; ref?: string | null; url?: string } = {},
+) {
+  const createdAt = ago(createdMinutesAgo * 60_000);
+  return {
+    id,
+    environment,
+    createdAt,
+    ref: extra.ref === null ? null : { name: extra.ref ?? "main" },
+    commitOid: `${id}9fd031aa`,
+    commit: { messageHeadline: extra.message ?? `deploy ${id}` },
+    creator: { login: "vercel" },
+    latestStatus: {
+      state,
+      createdAt: new Date(
+        new Date(createdAt).getTime() + (extra.durationSec ?? 30) * 1000,
+      ).toISOString(),
+      environmentUrl: extra.url ?? `https://${id}.example.app`,
+      logUrl: `https://vercel.example/logs/${id}`,
+    },
+  };
+}
+
+const deployments: Record<string, unknown[]> = {
+  marketing: [
+    deployment("mk1", "Production", "SUCCESS", 60, {
+      durationSec: 84,
+      message: "feat(pricing): update enterprise tier add-on calculators",
+    }),
+    deployment("mk2", "Preview", "IN_PROGRESS", 10, {
+      ref: "feat/stripe",
+      message: "feat(stripe): webhook retry",
+    }),
+    deployment("mk3", "staging", "FAILURE", 120, {
+      message: "fix(taxjar): handle zero-rate timeouts",
+    }),
+    deployment("mk4", "Preview", "INACTIVE", 300, { ref: "old/branch", message: "old preview" }),
+  ],
+  billing: [deployment("bl1", "Production", "SUCCESS", 42, { durationSec: 70 })],
+};
 
 const DAY = 24 * 3600_000;
 
@@ -72,9 +122,6 @@ function defaultBranchRef(name: string) {
     },
   };
 }
-
-const HOUR = 3600_000;
-const ago = (ms: number) => new Date(Date.now() - ms).toISOString();
 
 function pr(number: number, title: string, state: string | null, extra: object = {}) {
   return {
@@ -144,6 +191,7 @@ const pullRequests: Record<string, { open: unknown[]; merged: unknown[] }> = {
     ],
     merged: [],
   },
+  marketing: { open: [], merged: [] },
   billing: {
     open: [
       pr(88, "Support multi-currency invoicing", "FAILURE", { author: author("dev-sam") }),
@@ -206,12 +254,19 @@ const server = createServer(async (req, res) => {
     return send(res, 200, { total_count: repositories.length, repositories });
   }
   if (route === "POST /graphql") {
-    const { variables } = (await readJson(req)) as { variables?: { name?: string } };
+    const { query, variables } = (await readJson(req)) as {
+      query?: string;
+      variables?: { name?: string };
+    };
     if (variables?.name === "legacy") {
       return send(res, 200, {
         data: { repository: null },
         errors: [{ type: "FORBIDDEN", message: "Resource not accessible by integration" }],
       });
+    }
+    if (query?.includes("RepoDeployments")) {
+      const nodes = deployments[variables?.name ?? ""] ?? [];
+      return send(res, 200, { data: { repository: { deployments: { nodes } } } });
     }
     const data = pullRequests[variables?.name ?? ""];
     return send(res, 200, {

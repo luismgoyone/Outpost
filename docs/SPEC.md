@@ -60,7 +60,8 @@ The UI follows the **Engineered Precision** design system (Google Stitch project
 - Tailwind CSS + shadcn/ui, Recharts for charts
 - GitHub App for repo access; Octokit with GraphQL for PRs/stats and REST for releases,
   workflow runs and deployments
-- Vercel REST API for deployments and previews
+- Deployments from the GitHub Deployments API (Vercel, Netlify and CI report there); the
+  Vercel REST API is reserved for Vercel-only details later
 - Postgres (Neon) + Drizzle ORM for connected repos and cached data
 - Auth.js with GitHub provider, owner only
 - Vitest for unit tests, Playwright for end-to-end tests (video on failure)
@@ -75,7 +76,7 @@ The UI follows the **Engineered Precision** design system (Google Stitch project
 3. **Pull Requests**: cross-repo PR table with review state, age and filters (#12)
 4. **My Work**: personal inbox across repos (#13)
 5. **Overview**: attention cards and repo health cards, including PRs-per-week sparklines (#6)
-6. **Deployments**: Vercel and GitHub deployments across repos (#4)
+6. **Deployments**: GitHub Deployments (incl. Vercel) across repos (#4)
 7. **Releases**: release timeline and changelogs across repos (#5)
 8. **Repository detail**: tabs for PRs, workflow runs, deployments and releases (#14)
 9. **Cache and live updates**: cache in Postgres, then GitHub webhooks (#7)

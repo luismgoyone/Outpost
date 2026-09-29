@@ -30,7 +30,7 @@ import {
 } from "@/lib/pull-request-filters";
 import { listConnectedRepos } from "@/lib/repos";
 
-import { RepoSelect } from "./repo-select";
+import { RepoSelect } from "@/components/repo-select";
 
 export const metadata: Metadata = { title: "Pull Requests · Outpost" };
 

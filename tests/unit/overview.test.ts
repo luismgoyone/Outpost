@@ -107,3 +107,42 @@ describe("buildOverview", () => {
     expect(empty.waitingForReview.avgWaitDays).toBeNull();
   });
 });
+
+describe("deployments in the overview", () => {
+  const dep = (id: string, environment: string, state: string, createdAt: string) =>
+    ({
+      id,
+      environment,
+      environmentKind: environment.toLowerCase().startsWith("prod") ? "production" : "preview",
+      state,
+      createdAt,
+    }) as never;
+
+  it("counts environments whose latest deploy failed and picks the latest prod deploy", () => {
+    const overview = buildOverview(
+      [
+        {
+          repo: repo("web"),
+          data: data([]),
+          deployments: [
+            dep("1", "Production", "failure", "2026-09-01"),
+            dep("2", "Production", "success", "2026-09-02"),
+            dep("3", "Preview", "failure", "2026-09-03"),
+          ],
+        },
+        { repo: repo("api"), data: data([]), deployments: [] },
+      ],
+      now,
+    );
+    expect(overview.failedDeployments).toEqual({
+      count: 1,
+      items: [{ repoId: "web", label: "web (Preview)", detail: "failed" }],
+    });
+    expect(overview.repos.find((r) => r.repo.name === "web")?.productionDeploy?.id).toBe("2");
+    expect(overview.repos[0].repo.name).toBe("web"); // a failed environment raises attention
+  });
+
+  it("is null when deployments weren't loaded", () => {
+    expect(buildOverview([{ repo: repo("x"), data: data([]) }], now).failedDeployments).toBeNull();
+  });
+});
