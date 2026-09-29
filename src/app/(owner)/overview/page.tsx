@@ -8,7 +8,9 @@ import { PageHeader } from "@/components/shell/page-header";
 import { Sparkline } from "@/components/sparkline";
 import { StatusBadge, type StatusTone } from "@/components/status-badge";
 import { buttonVariants } from "@/components/ui/button";
+import { fetchAllDeployments } from "@/lib/github/fetch-deployments";
 import { fetchAllPullRequests } from "@/lib/github/fetch-all-pull-requests";
+import { formatAge } from "@/lib/github/pull-requests";
 import { requireOwner } from "@/lib/owner";
 import { buildOverview, type AttentionCard, type RepoOverview } from "@/lib/overview";
 import { listConnectedRepos } from "@/lib/repos";
@@ -22,9 +24,17 @@ export default async function OverviewPage(props: PageProps<"/overview">) {
   const now = new Date();
 
   const repos = await listConnectedRepos();
-  const { results, errors } = await fetchAllPullRequests(repos);
+  const [{ results, errors }, deploys] = await Promise.all([
+    fetchAllPullRequests(repos),
+    fetchAllDeployments(repos, 20),
+  ]);
+  const deploymentsByRepo = new Map(deploys.results.map((r) => [r.repo.id, r.deployments]));
   const overview = buildOverview(
-    results.map(({ repo, ...data }) => ({ repo, data })),
+    results.map(({ repo, ...data }) => ({
+      repo,
+      data,
+      deployments: deploymentsByRepo.get(repo.id) ?? null,
+    })),
     now,
   );
   const visibleRepos = overview.repos.filter((r) => r.repo.name.toLowerCase().includes(query));
@@ -89,23 +99,32 @@ export default async function OverviewPage(props: PageProps<"/overview">) {
           card={overview.waitingForReview}
           empty="Nothing awaiting review"
         />
-        <section
-          aria-label="Failed deployments"
-          className="bg-card flex flex-col gap-3 rounded-lg border p-4"
-        >
-          <h2 className="text-subtle-foreground font-mono text-[11px] tracking-wider uppercase">
-            Failed deployments
-          </h2>
-          <p className="text-muted-foreground text-[13px]">
-            Deployments aren&apos;t connected yet.
-          </p>
-          <Link
-            href="/deployments"
-            className="text-primary mt-auto font-mono text-[11px] hover:underline"
+        {overview.failedDeployments ? (
+          <AttentionTile
+            title="Failed deployments"
+            tag="Latest per env"
+            tone="danger"
+            caption="environment blocks"
+            card={overview.failedDeployments}
+            empty="All environments healthy"
+          />
+        ) : (
+          <section
+            aria-label="Failed deployments"
+            className="bg-card flex flex-col gap-3 rounded-lg border p-4"
           >
-            Set up in Deployments →
-          </Link>
-        </section>
+            <h2 className="text-subtle-foreground font-mono text-[11px] tracking-wider uppercase">
+              Failed deployments
+            </h2>
+            <p className="text-muted-foreground text-[13px]">Deployments couldn&apos;t be read.</p>
+            <Link
+              href="/deployments"
+              className="text-primary mt-auto font-mono text-[11px] hover:underline"
+            >
+              See Deployments →
+            </Link>
+          </section>
+        )}
       </section>
 
       <section aria-labelledby="repos-heading" className="flex flex-col gap-3">
@@ -148,7 +167,7 @@ export default async function OverviewPage(props: PageProps<"/overview">) {
         ) : (
           <ul aria-label="Repository health" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {visibleRepos.map((r) => (
-              <RepoCard key={r.repo.id} overview={r} />
+              <RepoCard key={r.repo.id} overview={r} now={now} />
             ))}
           </ul>
         )}
@@ -224,8 +243,8 @@ function AttentionTile({
   );
 }
 
-function RepoCard({ overview }: { overview: RepoOverview }) {
-  const { repo, data, openCount, staleCount, weekly, mergeRate } = overview;
+function RepoCard({ overview, now }: { overview: RepoOverview; now: Date }) {
+  const { repo, data, openCount, staleCount, weekly, mergeRate, productionDeploy } = overview;
   const release = data.meta.latestRelease;
   const lastWeek = weekly.at(-1)?.count ?? 0;
   const mergeTone: StatusTone =
@@ -293,6 +312,33 @@ function RepoCard({ overview }: { overview: RepoOverview }) {
           </dt>
           <dd>
             <CiStatusBadge status={data.defaultBranch?.ciStatus ?? "none"} />
+          </dd>
+        </div>
+        <div className="col-span-2">
+          <dt className="text-subtle-foreground font-mono text-[11px]">Prod deploy</dt>
+          <dd className="font-mono text-[12px]">
+            {productionDeploy ? (
+              <>
+                {formatAge(productionDeploy.createdAt, now)} ago ·{" "}
+                <span
+                  className={
+                    productionDeploy.state === "success"
+                      ? "text-success"
+                      : productionDeploy.state === "failure"
+                        ? "text-destructive"
+                        : "text-primary"
+                  }
+                >
+                  {productionDeploy.state === "success"
+                    ? "Success"
+                    : productionDeploy.state === "failure"
+                      ? "Failed"
+                      : "Building"}
+                </span>
+              </>
+            ) : (
+              <span className="text-subtle-foreground">No deployments</span>
+            )}
           </dd>
         </div>
         <div>
