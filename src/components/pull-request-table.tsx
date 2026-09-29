@@ -1,5 +1,8 @@
+import { GitMerge, GitPullRequest, GitPullRequestDraft } from "lucide-react";
+
 import { CiStatusBadge } from "@/components/ci-status-badge";
-import { Badge } from "@/components/ui/badge";
+import { PanelEmpty } from "@/components/shell/panel";
+import { StatusBadge } from "@/components/status-badge";
 import {
   Table,
   TableBody,
@@ -23,46 +26,53 @@ export function PullRequestTable({
   dateLabel: string;
   emptyMessage: string;
 }) {
-  if (pullRequests.length === 0) {
-    return <p className="text-muted-foreground py-6 text-sm">{emptyMessage}</p>;
-  }
+  if (pullRequests.length === 0) return <PanelEmpty>{emptyMessage}</PanelEmpty>;
 
   return (
     <Table>
       <TableHeader>
-        <TableRow>
-          <TableHead>Pull request</TableHead>
+        <TableRow className="hover:bg-transparent">
+          <TableHead className="pl-4">Pull request</TableHead>
           <TableHead className="hidden sm:table-cell">Author</TableHead>
-          <TableHead>CI</TableHead>
-          <TableHead className="text-right">{dateLabel}</TableHead>
+          <TableHead>CI status</TableHead>
+          <TableHead className="pr-4 text-right">{dateLabel}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {pullRequests.map((pr) => {
           const date = pr[dateField];
+          const Icon = pr.mergedAt ? GitMerge : pr.isDraft ? GitPullRequestDraft : GitPullRequest;
           return (
             <TableRow key={pr.number}>
-              <TableCell className="w-full max-w-0">
+              <TableCell className="w-full max-w-0 pl-4">
                 <div className="flex items-center gap-2">
+                  <Icon
+                    aria-hidden
+                    className={
+                      pr.mergedAt
+                        ? "text-primary size-3.5 shrink-0"
+                        : "text-muted-foreground size-3.5 shrink-0"
+                    }
+                  />
                   <a
                     href={pr.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="truncate font-medium hover:underline"
+                    className="hover:text-primary truncate font-medium transition-colors"
                   >
                     {pr.title}
                   </a>
-                  {pr.isDraft && <Badge variant="outline">Draft</Badge>}
+                  <span className="text-subtle-foreground font-mono text-[11px]">#{pr.number}</span>
+                  {pr.isDraft && <StatusBadge tone="neutral" label="Draft" boxed />}
                 </div>
-                <span className="text-muted-foreground text-xs">#{pr.number}</span>
               </TableCell>
-              <TableCell className="text-muted-foreground hidden sm:table-cell">
-                {pr.author?.login ?? "ghost"}
+              <TableCell className="text-muted-foreground hidden font-mono text-[11px] sm:table-cell">
+                @{pr.author?.login ?? "ghost"}
               </TableCell>
               <TableCell>
                 <CiStatusBadge status={pr.ciStatus} />
               </TableCell>
-              <TableCell className="text-muted-foreground text-right tabular-nums">
+              <TableCell className="text-muted-foreground pr-4 text-right font-mono text-[11px] tabular-nums">
                 {date ? <time dateTime={date}>{dateFormat.format(new Date(date))}</time> : "—"}
               </TableCell>
             </TableRow>
