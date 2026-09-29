@@ -1,22 +1,22 @@
 import { expect, test } from "./support/fixtures";
 
-test.describe("owner dashboard", () => {
+test.describe("repositories", () => {
   test("requires sign-in", async ({ page }) => {
-    await page.goto("/dashboard");
+    await page.goto("/repositories");
     await expect(page).toHaveURL(/\/api\/auth\/signin/);
     await expect(page.getByRole("button", { name: /sign in with github/i })).toBeVisible();
   });
 
   test("rejects a signed-in user who isn't the owner", async ({ page, signInAs }) => {
     await signInAs("someone-else");
-    await page.goto("/dashboard");
+    await page.goto("/repositories");
     await expect(page).toHaveURL("/?error=not-owner");
     await expect(page.getByRole("alert").filter({ hasText: "isn't the owner" })).toBeVisible();
   });
 
   test("connects a repo and lists its PRs with CI status", async ({ page, signInAs }) => {
     await signInAs();
-    await page.goto("/dashboard");
+    await page.goto("/repositories");
 
     // Tests share one database and run in parallel, so only assert on this test's repo.
     const available = page.getByRole("list", { name: "Available repositories" });
@@ -24,6 +24,12 @@ test.describe("owner dashboard", () => {
     await page.getByRole("button", { name: "Connect acme/storefront" }).click();
 
     await expect(page.getByRole("heading", { level: 1, name: "acme/storefront" })).toBeVisible();
+    // The sidebar picks up the newly connected repo without a reload.
+    await expect(
+      page
+        .getByRole("list", { name: "Sidebar repositories" })
+        .getByRole("link", { name: "storefront" }),
+    ).toBeVisible();
 
     const open = page.getByRole("region", { name: "Open pull requests" });
     await expect(open.getByRole("row")).toHaveCount(4); // header + 3 PRs
@@ -36,8 +42,11 @@ test.describe("owner dashboard", () => {
     const merged = page.getByRole("region", { name: "Recently merged" });
     await expect(merged).toContainText("Fix cart totals rounding");
 
-    // Back on the dashboard, the repo moved from "available" to "connected".
-    await page.getByRole("link", { name: "← Dashboard" }).click();
+    // Back on Repositories, the repo moved from "available" to "connected".
+    await page
+      .getByRole("navigation", { name: "Breadcrumb" })
+      .getByRole("link", { name: "Repositories" })
+      .click();
     await expect(
       page.getByRole("list", { name: "Connected repositories" }).getByRole("link", {
         name: "acme/storefront",
@@ -48,7 +57,7 @@ test.describe("owner dashboard", () => {
 
   test("shows an empty state for a repo with no PRs", async ({ page, signInAs }) => {
     await signInAs();
-    await page.goto("/dashboard");
+    await page.goto("/repositories");
     await page.getByRole("button", { name: "Connect acme/docs" }).click();
     await expect(page.getByText("No open pull requests.")).toBeVisible();
     await expect(page.getByText("Nothing merged yet.")).toBeVisible();
@@ -57,13 +66,13 @@ test.describe("owner dashboard", () => {
 
 test("repo pages don't leak repo names to visitors", async ({ page, signInAs, context }) => {
   await signInAs();
-  await page.goto("/dashboard");
+  await page.goto("/repositories");
   await page
     .getByRole("button", { name: "Connect acme/storefront" })
     .or(page.getByRole("link", { name: "acme/storefront" }))
     .first()
     .click();
-  await expect(page).toHaveURL(/\/repos\//);
+  await expect(page).toHaveURL(/\/repositories\/[0-9a-f-]{36}$/);
   const repoUrl = page.url();
 
   await context.clearCookies();

@@ -1,36 +1,14 @@
-import { CheckCircle2, CircleDashed, Clock, XCircle } from "lucide-react";
-
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge, type StatusTone } from "@/components/status-badge";
 import type { CiStatus } from "@/lib/github/pull-requests";
 
-const config = {
-  success: {
-    label: "Passing",
-    variant: "secondary",
-    Icon: CheckCircle2,
-    className: "text-emerald-600 dark:text-emerald-400",
-  },
-  failure: { label: "Failing", variant: "destructive", Icon: XCircle, className: "" },
-  pending: {
-    label: "Running",
-    variant: "outline",
-    Icon: Clock,
-    className: "text-amber-600 dark:text-amber-400",
-  },
-  none: {
-    label: "No checks",
-    variant: "outline",
-    Icon: CircleDashed,
-    className: "text-muted-foreground",
-  },
-} as const;
+const config: Record<CiStatus, { label: string; tone: StatusTone }> = {
+  success: { label: "Passing", tone: "success" },
+  failure: { label: "Failing", tone: "danger" },
+  pending: { label: "Running", tone: "warning" },
+  none: { label: "No checks", tone: "neutral" },
+};
 
 export function CiStatusBadge({ status }: { status: CiStatus }) {
-  const { label, variant, Icon, className } = config[status];
-  return (
-    <Badge variant={variant} data-ci-status={status}>
-      <Icon aria-hidden className={className} />
-      {label}
-    </Badge>
-  );
+  const { label, tone } = config[status];
+  return <StatusBadge tone={tone} label={label} data-ci-status={status} />;
 }
