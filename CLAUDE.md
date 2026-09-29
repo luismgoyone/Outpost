@@ -60,6 +60,11 @@ pnpm build && pnpm test:e2e   # before opening a PR, or when touching pages or r
 - Share links (deferred feature): store only `hashShareToken(token)`. Revoked and unknown
   tokens both return 404.
 - Owner-only pages and server actions call `requireOwner()` (`src/lib/owner.ts`) first.
+- All GitHub reads go through `cached(repo, key, load)` (`src/lib/cache.ts`, 5-minute TTL,
+  stale copy served if GitHub fails). Add a `CacheKey` for new data types; the webhook and
+  Sync button invalidate it. The shell layout must never call GitHub directly.
+- Migrations are applied manually (`pnpm db:migrate`) before merging a PR that needs them;
+  preview deploys share the production database, so never run migrations in the build.
 - UI follows the design tokens in `src/app/globals.css` (dark only). Use semantic classes
   (`bg-card`, `bg-panel`, `text-muted-foreground`, `text-subtle-foreground`, `text-success`,
   `text-warning`, `text-destructive`) instead of raw colors. Status is always `StatusBadge`

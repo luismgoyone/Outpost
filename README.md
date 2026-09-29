@@ -30,6 +30,18 @@ pnpm dev                     # http://localhost:3000
 Then open `/dashboard`, sign in with GitHub as `OWNER_GITHUB_LOGIN`, and connect the repos the
 GitHub App is installed on.
 
+### Live updates (optional)
+
+Outpost caches GitHub data in Postgres for 5 minutes; the header's **Sync** button refreshes
+immediately. To refresh as soon as something changes, enable the GitHub App webhook:
+
+1. GitHub App settings → **Webhook**: check **Active**, set the URL to
+   `https://<your-domain>/api/github/webhook`, and set a random **Webhook secret**
+   (`openssl rand -hex 32`).
+2. **Permissions & events** → subscribe to: Pull request, Pull request review, Check suite,
+   Check run, Status, Workflow run, Release, Deployment, Deployment status, Push.
+3. Set the same secret as `GITHUB_WEBHOOK_SECRET` in Vercel (Production) and redeploy.
+
 ### End-to-end tests
 
 E2E tests never touch GitHub or your real database. They run the app against a mock GitHub
