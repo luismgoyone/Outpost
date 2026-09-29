@@ -18,7 +18,8 @@ Auth.js v5 (owner-only GitHub sign-in), Vitest, Playwright, ESLint + Prettier.
 src/app/            routes (App Router). API routes under src/app/api/
 src/components/ui/  shadcn/ui primitives (add with `pnpm dlx shadcn@latest add <name>`)
 src/components/     app components
-src/lib/github/     GitHub App + Octokit helpers
+src/lib/github/     GitHub App + Octokit helpers. Keep queries/mappers pure (unit-testable);
+                    I/O lives in files that import "server-only"
 src/lib/vercel/     Vercel REST client
 src/lib/share/      share-link tokens (hash-only storage, constant-time verify)
 src/lib/env.ts      requireEnv(): read env vars at call time, never at import time
@@ -39,7 +40,9 @@ pnpm lint && pnpm typecheck && pnpm test
 pnpm build && pnpm test:e2e   # before opening a PR, or when touching pages or routes
 ```
 
-- Playwright starts its own server. If port 3000 is busy, use `PORT=3457 pnpm test:e2e`.
+- E2E needs `pnpm e2e:db` (Docker Postgres on :54329). Playwright starts the app on :3100
+  plus a mock GitHub API on :4010 (`tests/e2e/support/mock-github.mts`); extend the mock when
+  adding GitHub calls. Sign in with the `signInAs()` fixture from `tests/e2e/support/fixtures.ts`.
 - Run `pnpm format` before committing.
 - CI (`.github/workflows/ci.yml`) runs the same checks. `main` requires them to pass.
 
@@ -49,6 +52,7 @@ pnpm build && pnpm test:e2e   # before opening a PR, or when touching pages or r
 - Build and tests must pass without any env vars. Create clients lazily (`getDb()`,
   `getGitHubApp()`) and don't read env at module top level.
 - Share links: store only `hashShareToken(token)`. Revoked and unknown tokens both return 404.
+- Owner-only pages and server actions call `requireOwner()` (`src/lib/owner.ts`) first.
 - Server components by default. Add `"use client"` only where interactivity requires it.
 - Small commits with clear, conventional messages (`feat:`, `fix:`, `chore:`, `docs:`, `ci:`).
 - Work on a branch and open a PR with `gh pr create`. Never push directly to `main`.
