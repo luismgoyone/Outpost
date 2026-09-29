@@ -3,6 +3,7 @@
  * Serves one installation (acme) with a few repos and canned pull requests. Each e2e test
  * owns its repos (tests run in parallel against one database):
  *   storefront → connect-repo flow · docs → empty state and visitor leak · api, legacy → PR screen
+ *   mobile → My Work (review request, my PR with changes requested, stale PR, failing main)
  * "legacy" always fails its GraphQL query, to exercise per-repo error handling.
  * Run directly with Node (type stripping): node tests/e2e/support/mock-github.mts
  */
@@ -17,7 +18,24 @@ const repositories = [
   { id: 2, name: "docs", full_name: "acme/docs", owner, private: false },
   { id: 3, name: "api", full_name: "acme/api", owner, private: true },
   { id: 4, name: "legacy", full_name: "acme/legacy", owner, private: false },
+  { id: 5, name: "mobile", full_name: "acme/mobile", owner, private: true },
 ];
+
+/** Repos whose default branch CI is failing. */
+const failingMain = new Set(["mobile"]);
+
+function defaultBranchRef(name: string) {
+  return {
+    name: "main",
+    target: {
+      oid: `${name}0000c84a1e9f`,
+      messageHeadline: failingMain.has(name) ? "Build fastlane iOS test suite" : "chore: bump deps",
+      committedDate: ago(3 * HOUR),
+      url: `https://github.com/acme/${name}/commit/${name}0000c84a1e9f`,
+      statusCheckRollup: { state: failingMain.has(name) ? "FAILURE" : "SUCCESS" },
+    },
+  };
+}
 
 const HOUR = 3600_000;
 const ago = (ms: number) => new Date(Date.now() - ms).toISOString();
@@ -43,6 +61,9 @@ function pr(number: number, title: string, state: string | null, extra: object =
   };
 }
 
+const requested = (...logins: string[]) => ({
+  nodes: logins.map((login) => ({ requestedReviewer: { login } })),
+});
 const approvedBy = (n: number) => ({
   nodes: Array.from({ length: n }, () => ({ state: "APPROVED" })),
 });
@@ -83,6 +104,26 @@ const pullRequests: Record<string, { open: unknown[]; merged: unknown[] }> = {
         isDraft: true,
         createdAt: ago(3 * HOUR),
         updatedAt: ago(1 * HOUR),
+      }),
+    ],
+    merged: [],
+  },
+  mobile: {
+    open: [
+      pr(40, "Offline sync queue", "SUCCESS", {
+        author: author("dev-sam"),
+        reviewRequests: requested("e2e-owner"),
+        updatedAt: ago(4 * HOUR),
+      }),
+      pr(41, "Fix tray menu crash", "SUCCESS", {
+        author: author("e2e-owner"),
+        reviewDecision: "CHANGES_REQUESTED",
+        updatedAt: ago(6 * HOUR),
+      }),
+      pr(42, "Upgrade React Native to 0.74", "FAILURE", {
+        author: author("david-l"),
+        createdAt: ago(15 * 24 * HOUR),
+        updatedAt: ago(12 * 24 * HOUR),
       }),
     ],
     merged: [],
@@ -132,7 +173,13 @@ const server = createServer(async (req, res) => {
     const data = pullRequests[variables?.name ?? ""];
     return send(res, 200, {
       data: {
-        repository: data ? { open: { nodes: data.open }, merged: { nodes: data.merged } } : null,
+        repository: data
+          ? {
+              defaultBranchRef: defaultBranchRef(variables?.name ?? ""),
+              open: { nodes: data.open },
+              merged: { nodes: data.merged },
+            }
+          : null,
       },
     });
   }

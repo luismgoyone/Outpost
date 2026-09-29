@@ -79,6 +79,51 @@ describe("mapPullRequests", () => {
   });
 
   it("returns empty lists when the repo is not accessible", () => {
-    expect(mapPullRequests({ repository: null })).toEqual({ open: [], merged: [] });
+    expect(mapPullRequests({ repository: null })).toEqual({
+      open: [],
+      merged: [],
+      defaultBranch: null,
+    });
+  });
+});
+
+describe("default branch", () => {
+  it("maps the latest default-branch commit and its CI status", () => {
+    const result = mapPullRequests({
+      repository: {
+        defaultBranchRef: {
+          name: "main",
+          target: {
+            oid: "abc1234def",
+            messageHeadline: "fix: thing",
+            committedDate: "2026-09-28T00:00:00Z",
+            url: "https://github.com/acme/app/commit/abc1234def",
+            statusCheckRollup: { state: "ERROR" },
+          },
+        },
+        open: { nodes: [] },
+        merged: { nodes: [] },
+      },
+    });
+    expect(result.defaultBranch).toEqual({
+      name: "main",
+      ciStatus: "failure",
+      sha: "abc1234def",
+      message: "fix: thing",
+      url: "https://github.com/acme/app/commit/abc1234def",
+      committedAt: "2026-09-28T00:00:00Z",
+    });
+  });
+
+  it("is null for empty repos", () => {
+    const empty = { open: { nodes: [] }, merged: { nodes: [] } };
+    expect(
+      mapPullRequests({ repository: { ...empty, defaultBranchRef: null } }).defaultBranch,
+    ).toBeNull();
+    expect(
+      mapPullRequests({
+        repository: { ...empty, defaultBranchRef: { name: "main", target: null } },
+      }).defaultBranch,
+    ).toBeNull();
   });
 });

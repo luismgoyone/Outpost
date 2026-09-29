@@ -27,7 +27,21 @@ export type PullRequest = {
   deletions: number;
 };
 
-export type RepoPullRequests = { open: PullRequest[]; merged: PullRequest[] };
+/** Latest commit on the default branch, with its combined CI status. */
+export type DefaultBranch = {
+  name: string;
+  ciStatus: CiStatus;
+  sha: string;
+  message: string;
+  url: string;
+  committedAt: string;
+};
+
+export type RepoPullRequests = {
+  open: PullRequest[];
+  merged: PullRequest[];
+  defaultBranch: DefaultBranch | null;
+};
 
 const PULL_REQUEST_FIELDS = /* GraphQL */ `
   fragment PullRequestFields on PullRequest {
@@ -78,6 +92,20 @@ const PULL_REQUEST_FIELDS = /* GraphQL */ `
 export const PULL_REQUESTS_QUERY = /* GraphQL */ `
   query RepoPullRequests($owner: String!, $name: String!, $openCount: Int!, $mergedCount: Int!) {
     repository(owner: $owner, name: $name) {
+      defaultBranchRef {
+        name
+        target {
+          ... on Commit {
+            oid
+            messageHeadline
+            committedDate
+            url
+            statusCheckRollup {
+              state
+            }
+          }
+        }
+      }
       open: pullRequests(
         states: OPEN
         first: $openCount
@@ -128,8 +156,20 @@ type PullRequestNode = {
   };
 };
 
+type DefaultBranchRef = {
+  name: string;
+  target: {
+    oid?: string;
+    messageHeadline?: string;
+    committedDate?: string;
+    url?: string;
+    statusCheckRollup?: { state: RollupState } | null;
+  } | null;
+} | null;
+
 export type PullRequestsQueryResult = {
   repository: {
+    defaultBranchRef?: DefaultBranchRef;
     open: { nodes: Array<PullRequestNode | null> | null };
     merged: { nodes: Array<PullRequestNode | null> | null };
   } | null;
@@ -193,12 +233,25 @@ function compact<T>(nodes: Array<T | null> | null | undefined): T[] {
 
 /** Map the GraphQL response. Merged PRs are sorted newest merge first. */
 export function mapPullRequests(result: PullRequestsQueryResult): RepoPullRequests {
-  if (!result.repository) return { open: [], merged: [] };
+  if (!result.repository) return { open: [], merged: [], defaultBranch: null };
   const open = compact(result.repository.open.nodes).map(toPullRequest);
   const merged = compact(result.repository.merged.nodes)
     .map(toPullRequest)
     .sort((a, b) => (b.mergedAt ?? "").localeCompare(a.mergedAt ?? ""));
-  return { open, merged };
+  return { open, merged, defaultBranch: toDefaultBranch(result.repository.defaultBranchRef) };
+}
+
+function toDefaultBranch(ref: DefaultBranchRef | undefined): DefaultBranch | null {
+  const commit = ref?.target;
+  if (!ref || !commit?.oid) return null;
+  return {
+    name: ref.name,
+    ciStatus: toCiStatus(commit.statusCheckRollup?.state),
+    sha: commit.oid,
+    message: commit.messageHeadline ?? "",
+    url: commit.url ?? "",
+    committedAt: commit.committedDate ?? "",
+  };
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
