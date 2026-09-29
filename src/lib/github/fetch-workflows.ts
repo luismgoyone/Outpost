@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { Repo } from "@/db/schema";
+import { cached } from "@/lib/cache";
 
 import { getInstallationOctokit } from "./app";
 import { isPermissionError } from "./deployments";
@@ -12,16 +13,16 @@ export type WorkflowsResult =
 
 export async function fetchWorkflows(repo: Repo): Promise<WorkflowsResult> {
   try {
-    const octokit = await getInstallationOctokit(repo.installationId);
-    const { data } = await octokit.rest.actions.listWorkflowRunsForRepo({
-      owner: repo.owner,
-      repo: repo.name,
-      per_page: 100,
+    const workflows = await cached(repo, "workflows", async () => {
+      const octokit = await getInstallationOctokit(repo.installationId);
+      const { data } = await octokit.rest.actions.listWorkflowRunsForRepo({
+        owner: repo.owner,
+        repo: repo.name,
+        per_page: 100,
+      });
+      return summarizeWorkflows((data.workflow_runs as ApiRun[]).map(mapRun));
     });
-    return {
-      ok: true,
-      workflows: summarizeWorkflows((data.workflow_runs as ApiRun[]).map(mapRun)),
-    };
+    return { ok: true, workflows };
   } catch (error) {
     const err = error as { status?: number; message?: string };
     const message = String(err.message ?? error);
