@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { Repo } from "@/db/schema";
+import { cached } from "@/lib/cache";
 
 import { getInstallationOctokit } from "./app";
 import {
@@ -17,17 +18,19 @@ export type RepoDeployments = { repo: Repo; deployments: Deployment[] };
  * Deployments for every connected repo, in parallel. Kept out of the PR query so a missing
  * Deployments permission can't break the other screens.
  */
-export async function fetchAllDeployments(repos: Repo[], count = 30) {
+export async function fetchAllDeployments(repos: Repo[]) {
   const settled = await Promise.allSettled(
-    repos.map(async (repo) => {
-      const octokit = await getInstallationOctokit(repo.installationId);
-      const result = await octokit.graphql<DeploymentsQueryResult>(DEPLOYMENTS_QUERY, {
-        owner: repo.owner,
-        name: repo.name,
-        count,
-      });
-      return mapDeployments(result);
-    }),
+    repos.map((repo) =>
+      cached(repo, "deployments", async () => {
+        const octokit = await getInstallationOctokit(repo.installationId);
+        const result = await octokit.graphql<DeploymentsQueryResult>(DEPLOYMENTS_QUERY, {
+          owner: repo.owner,
+          name: repo.name,
+          count: 30,
+        });
+        return mapDeployments(result);
+      }),
+    ),
   );
 
   const results: RepoDeployments[] = [];

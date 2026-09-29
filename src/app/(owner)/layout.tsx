@@ -1,10 +1,16 @@
-import { Box, LogOut } from "lucide-react";
+import { Box, LogOut, RefreshCw } from "lucide-react";
 import Link from "next/link";
 
 import { auth, isOwner, signOut } from "@/auth";
 import { Breadcrumbs } from "@/components/shell/breadcrumbs";
 import { SidebarNav } from "@/components/shell/sidebar-nav";
+import { oldestSync, readAllCached } from "@/lib/cache";
+import { syncedLabel } from "@/lib/cache-policy";
+import type { RepoPullRequests } from "@/lib/github/pull-requests";
+import { buildMyWork } from "@/lib/my-work";
 import { listConnectedRepos } from "@/lib/repos";
+
+import { syncNowAction } from "./actions";
 
 /**
  * App shell for owner pages. Every page still calls requireOwner() itself; the layout only
@@ -14,6 +20,24 @@ export default async function OwnerLayout({ children }: LayoutProps<"/">) {
   const session = await auth();
   const owner = isOwner(session?.user?.login);
   const repos = owner ? await listConnectedRepos() : [];
+  const now = new Date();
+
+  // Badges come from cached snapshots only, so rendering the shell never calls GitHub.
+  const [cachedPulls, lastSync] = owner
+    ? await Promise.all([readAllCached<RepoPullRequests>("pulls"), oldestSync()])
+    : [[], null];
+  const byId = new Map(repos.map((r) => [r.id, r]));
+  const snapshots = cachedPulls.flatMap(({ repoId, data }) => {
+    const repo = byId.get(repoId);
+    return repo
+      ? [{ repoId, repoName: repo.name, open: data.open, defaultBranch: data.defaultBranch }]
+      : [];
+  });
+  const counts: Record<string, number> = { "/repositories": repos.length };
+  if (snapshots.length > 0) {
+    counts["/pull-requests"] = snapshots.reduce((n, s) => n + s.open.length, 0);
+    counts["/my-work"] = buildMyWork(snapshots, session?.user?.login, now).attentionCount;
+  }
 
   return (
     <div className="flex min-h-screen">
@@ -33,7 +57,7 @@ export default async function OwnerLayout({ children }: LayoutProps<"/">) {
         </Link>
 
         <div className="mt-5">
-          <SidebarNav counts={{ "/repositories": repos.length }} />
+          <SidebarNav counts={counts} />
         </div>
 
         <div className="mt-auto flex flex-col gap-3">
@@ -83,8 +107,26 @@ export default async function OwnerLayout({ children }: LayoutProps<"/">) {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="bg-background/80 sticky top-0 z-10 flex h-11 items-center border-b px-4 backdrop-blur">
+        <header className="bg-background/80 sticky top-0 z-10 flex h-11 items-center gap-3 border-b px-4 backdrop-blur">
           <Breadcrumbs />
+          {owner && (
+            <form action={syncNowAction} className="ml-auto flex items-center gap-2">
+              <span
+                role="status"
+                className="text-muted-foreground bg-panel flex items-center gap-1.5 rounded-sm border px-2 py-0.5 font-mono text-[11px]"
+              >
+                <span aria-hidden className="bg-success size-1.5 rounded-full" />
+                {syncedLabel(lastSync, now)}
+              </span>
+              <button
+                type="submit"
+                className="bg-secondary flex h-7 items-center gap-1.5 rounded-sm border px-2.5 text-[13px] transition-colors hover:bg-white/8"
+              >
+                <RefreshCw aria-hidden className="size-3.5" />
+                Sync
+              </button>
+            </form>
+          )}
         </header>
         <main className="flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6">
           {children}

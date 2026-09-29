@@ -24,6 +24,7 @@ const appEnv = {
   AUTH_GITHUB_ID: "e2e",
   AUTH_GITHUB_SECRET: "e2e",
   OWNER_GITHUB_LOGIN: E2E.ownerLogin,
+  GITHUB_WEBHOOK_SECRET: E2E.webhookSecret,
 };
 
 export default defineConfig({

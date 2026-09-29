@@ -8,6 +8,8 @@
  *   marketing → Deployments (production, preview building, staging failed, superseded preview)
  *   platform → Releases (latest + previous + old release, a draft, notes with unsafe HTML/links)
  *              and repo detail (workflow runs, one deployment); docs → Actions permission denied
+ *   cachey → cache + Sync button · infra → webhook invalidation
+ * GET /__calls?repo=name returns how many times a repo's PR query hit this server.
  * "legacy" always fails its GraphQL query, to exercise per-repo error handling.
  * Run directly with Node (type stripping): node tests/e2e/support/mock-github.mts
  */
@@ -29,7 +31,12 @@ const repositories = [
   { id: 6, name: "billing", full_name: "acme/billing", owner, private: true },
   { id: 7, name: "marketing", full_name: "acme/marketing", owner, private: false },
   { id: 8, name: "platform", full_name: "acme/platform", owner, private: true },
+  { id: 9, name: "cachey", full_name: "acme/cachey", owner, private: false },
+  { id: 10, name: "infra", full_name: "acme/infra", owner, private: false },
 ];
+
+/** PR-query calls per repo, so e2e tests can prove what the cache does. */
+const pullQueryCalls = new Map<string, number>();
 
 function release(tagName: string, daysAgo: number, extra: object = {}) {
   return {
@@ -292,6 +299,8 @@ const pullRequests: Record<string, { open: unknown[]; merged: unknown[] }> = {
     merged: [],
   },
   marketing: { open: [], merged: [] },
+  cachey: { open: [pr(1, "Cached PR", "SUCCESS")], merged: [] },
+  infra: { open: [pr(2, "Infra PR", "SUCCESS")], merged: [] },
   platform: { open: [], merged: [] },
   billing: {
     open: [
@@ -338,6 +347,9 @@ const server = createServer(async (req, res) => {
   const route = `${req.method} ${url.pathname}`;
 
   if (route === "GET /health") return send(res, 200, { ok: true });
+  if (route === "GET /__calls") {
+    return send(res, 200, { calls: pullQueryCalls.get(url.searchParams.get("repo") ?? "") ?? 0 });
+  }
   if (route === "GET /app")
     return send(res, 200, { id: 1, slug: "outpost-e2e", name: "Outpost E2E" });
   if (route === "GET /app/installations") {
@@ -385,6 +397,7 @@ const server = createServer(async (req, res) => {
       return send(res, 200, { data: { repository: { deployments: { nodes } } } });
     }
     const data = pullRequests[variables?.name ?? ""];
+    pullQueryCalls.set(variables?.name ?? "", (pullQueryCalls.get(variables?.name ?? "") ?? 0) + 1);
     return send(res, 200, {
       data: {
         repository: data

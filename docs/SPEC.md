@@ -79,7 +79,8 @@ The UI follows the **Engineered Precision** design system (Google Stitch project
 6. **Deployments**: GitHub Deployments (incl. Vercel) across repos (#4)
 7. **Releases**: release timeline and changelogs across repos (#5)
 8. **Repository detail**: tabs for PRs, workflow runs, deployments and releases (#14)
-9. **Cache and live updates**: cache in Postgres, then GitHub webhooks (#7)
+9. **Cache and live updates**: 5-minute Postgres cache, Sync button, sidebar badges, and
+   signed GitHub webhooks that refresh a repo's data (#7)
 
 ## Later
 

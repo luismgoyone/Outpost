@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { Repo } from "@/db/schema";
+import { cached } from "@/lib/cache";
 
 import { getInstallationOctokit } from "./app";
 import {
@@ -13,46 +14,26 @@ import {
 } from "./releases";
 
 export type RepoRelease = { repo: Repo; release: Release; changes: ReleaseChanges | null };
+type CachedRelease = { release: Release; changes: ReleaseChanges | null };
 
 /**
- * Releases for every connected repo, newest first. The `detailed` newest releases also get
- * commits, contributors and PRs since their previous tag (one compare call each).
+ * One repo's releases, newest first. The `detailed` newest also get commits, contributors
+ * and PRs since their previous tag (one compare call each).
  */
-export async function fetchAllReleases(repos: Repo[], { perRepo = 10, detailed = 12 } = {}) {
-  const settled = await Promise.allSettled(
-    repos.map(async (repo) => {
-      const octokit = await getInstallationOctokit(repo.installationId);
-      const result = await octokit.graphql<ReleasesQueryResult>(RELEASES_QUERY, {
-        owner: repo.owner,
-        name: repo.name,
-        count: perRepo,
-      });
-      return { repo, octokit, releases: mapReleases(result) };
-    }),
-  );
-
-  const errors: Array<{ repo: Repo; message: string }> = [];
-  const perRepoReleases = settled.flatMap((outcome, i) => {
-    if (outcome.status === "fulfilled") return [outcome.value];
-    errors.push({ repo: repos[i], message: String(outcome.reason?.message ?? outcome.reason) });
-    return [];
+async function fetchRepoReleases(repo: Repo, perRepo = 10, detailed = 5): Promise<CachedRelease[]> {
+  const octokit = await getInstallationOctokit(repo.installationId);
+  const result = await octokit.graphql<ReleasesQueryResult>(RELEASES_QUERY, {
+    owner: repo.owner,
+    name: repo.name,
+    count: perRepo,
   });
+  const releases = mapReleases(result);
 
-  const all = perRepoReleases
-    .flatMap(({ repo, octokit, releases }) =>
-      releases.map((release, index) => ({
-        repo,
-        octokit,
-        release,
-        // Releases are newest first, so the previous release is the next one in the list.
-        previous: releases[index + 1] ?? null,
-      })),
-    )
-    .sort((a, b) => b.release.publishedAt.localeCompare(a.release.publishedAt));
-
-  const items: RepoRelease[] = await Promise.all(
-    all.map(async ({ repo, octokit, release, previous }, index) => {
-      if (!previous || index >= detailed) return { repo, release, changes: null };
+  return Promise.all(
+    releases.map(async (release, index): Promise<CachedRelease> => {
+      // Newest first, so the previous release is the next one in the list.
+      const previous = releases[index + 1];
+      if (!previous || index >= detailed) return { release, changes: null };
       try {
         const { data } = await octokit.rest.repos.compareCommitsWithBasehead({
           owner: repo.owner,
@@ -60,25 +41,39 @@ export async function fetchAllReleases(repos: Repo[], { perRepo = 10, detailed =
           basehead: `${previous.tagName}...${release.tagName}`,
           per_page: 100,
         });
-        const contributors = [
-          ...new Set(data.commits.map((c) => c.author?.login).filter((l): l is string => !!l)),
-        ];
         return {
-          repo,
           release,
           changes: {
             commits: data.total_commits,
-            contributors,
+            contributors: [
+              ...new Set(data.commits.map((c) => c.author?.login).filter((l): l is string => !!l)),
+            ],
             pullRequests: pullRequestNumbers(data.commits.map((c) => c.commit.message)),
             compareUrl: data.html_url,
             previousTag: previous.tagName,
           },
         };
       } catch {
-        return { repo, release, changes: null };
+        return { release, changes: null };
       }
     }),
   );
+}
 
+/** Releases for every connected repo (cached per repo), newest first across repos. */
+export async function fetchAllReleases(repos: Repo[]) {
+  const settled = await Promise.allSettled(
+    repos.map((repo) => cached(repo, "releases", () => fetchRepoReleases(repo))),
+  );
+  const errors: Array<{ repo: Repo; message: string }> = [];
+  const items: RepoRelease[] = settled.flatMap((outcome, i) => {
+    const repo = repos[i];
+    if (outcome.status === "rejected") {
+      errors.push({ repo, message: String(outcome.reason?.message ?? outcome.reason) });
+      return [];
+    }
+    return outcome.value.map((r) => ({ repo, ...r }));
+  });
+  items.sort((a, b) => b.release.publishedAt.localeCompare(a.release.publishedAt));
   return { items, errors };
 }

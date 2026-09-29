@@ -1,5 +1,7 @@
 import "server-only";
 
+import type { Repo } from "@/db/schema";
+import { cached } from "@/lib/cache";
 import type { RepoRef } from "@/lib/repos";
 
 import { getInstallationOctokit } from "./app";
@@ -19,4 +21,9 @@ export async function fetchPullRequests(repo: RepoRef): Promise<RepoPullRequests
     mergedCount: 20,
   });
   return mapPullRequests(result);
+}
+
+/** Cached read of a connected repo's pull requests (see src/lib/cache.ts). */
+export async function loadPullRequests(repo: Repo): Promise<RepoPullRequests> {
+  return cached(repo, "pulls", () => fetchPullRequests(repo));
 }

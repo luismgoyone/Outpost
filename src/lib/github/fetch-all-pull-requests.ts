@@ -2,7 +2,7 @@ import "server-only";
 
 import type { Repo } from "@/db/schema";
 
-import { fetchPullRequests } from "./fetch-pull-requests";
+import { loadPullRequests } from "./fetch-pull-requests";
 import type { RepoPullRequests } from "./pull-requests";
 
 export type RepoFetchError = { repo: Repo; message: string };
@@ -15,7 +15,7 @@ export async function fetchAllPullRequests(repos: Repo[]): Promise<{
   results: Array<{ repo: Repo } & RepoPullRequests>;
   errors: RepoFetchError[];
 }> {
-  const settled = await Promise.allSettled(repos.map((repo) => fetchPullRequests(repo)));
+  const settled = await Promise.allSettled(repos.map((repo) => loadPullRequests(repo)));
   const results: Array<{ repo: Repo } & RepoPullRequests> = [];
   const errors: RepoFetchError[] = [];
   settled.forEach((outcome, i) => {

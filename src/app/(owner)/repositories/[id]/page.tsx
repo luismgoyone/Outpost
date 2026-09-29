@@ -15,7 +15,7 @@ import { WorkflowTable } from "@/components/workflow-table";
 import type { Repo } from "@/db/schema";
 import { fetchAllDeployments } from "@/lib/github/fetch-deployments";
 import { fetchAllReleases } from "@/lib/github/fetch-releases";
-import { fetchPullRequests } from "@/lib/github/fetch-pull-requests";
+import { loadPullRequests } from "@/lib/github/fetch-pull-requests";
 import { fetchWorkflows } from "@/lib/github/fetch-workflows";
 import { requireOwner } from "@/lib/owner";
 import { getConnectedRepo } from "@/lib/repos";
@@ -62,7 +62,7 @@ export default async function RepoPage(props: PageProps<"/repositories/[id]">) {
 
   const now = new Date();
   // A repo can lose App access after it's connected; show that instead of crashing the page.
-  const result = await fetchPullRequests(repo).then(
+  const result = await loadPullRequests(repo).then(
     (data) => ({ ok: true as const, ...data }),
     (error: unknown) => ({
       ok: false as const,
