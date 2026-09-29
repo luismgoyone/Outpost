@@ -128,7 +128,7 @@ export default async function OwnerLayout({ children }: LayoutProps<"/">) {
             </form>
           )}
         </header>
-        <main className="flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6">
+        <main className="flex w-full flex-1 flex-col gap-6 px-4 py-6 sm:px-6 2xl:px-8">
           {children}
         </main>
       </div>

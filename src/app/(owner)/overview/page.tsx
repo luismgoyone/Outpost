@@ -165,7 +165,10 @@ export default async function OverviewPage(props: PageProps<"/overview">) {
         ) : visibleRepos.length === 0 ? (
           <p className="text-muted-foreground text-[13px]">No repositories match “{query}”.</p>
         ) : (
-          <ul aria-label="Repository health" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <ul
+            aria-label="Repository health"
+            className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,17rem),1fr))] gap-3"
+          >
             {visibleRepos.map((r) => (
               <RepoCard key={r.repo.id} overview={r} now={now} />
             ))}
