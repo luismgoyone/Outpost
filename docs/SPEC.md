@@ -71,20 +71,20 @@ The UI follows the **Engineered Precision** design system (Google Stitch project
 
 1. ✅ **Connect repos** via the GitHub App and list PRs with CI status (#2)
 2. **App shell and design system**: Engineered Precision theme, sidebar and header,
-   restyle existing pages
-3. **Pull Requests**: cross-repo PR table with review state, age and filters
-4. **My Work**: personal inbox across repos
+   restyle existing pages (#11)
+3. **Pull Requests**: cross-repo PR table with review state, age and filters (#12)
+4. **My Work**: personal inbox across repos (#13)
 5. **Overview**: attention cards and repo health cards, including PRs-per-week sparklines (#6)
 6. **Deployments**: Vercel and GitHub deployments across repos (#4)
 7. **Releases**: release timeline and changelogs across repos (#5)
-8. **Repository detail**: tabs for PRs, workflow runs, deployments and releases
+8. **Repository detail**: tabs for PRs, workflow runs, deployments and releases (#14)
 9. **Cache and live updates**: cache in Postgres, then GitHub webhooks (#7)
 
 ## Later
 
-- Actions from Outpost: re-run CI, retry deploys, nudge reviewers (needs write permissions)
-- Alerts and integrations: Slack digests and alert rules, Linear ticket links
-- ⌘K command palette
+- Actions from Outpost: re-run CI, retry deploys, nudge reviewers (needs write permissions) (#15)
+- Alerts and integrations: Slack digests and alert rules, Linear ticket links (#16)
+- ⌘K command palette (#16)
 - Client-facing read-only share link (#3)
 
 Each milestone is tracked as a GitHub issue.
