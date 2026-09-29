@@ -1,6 +1,6 @@
 {
   "description": "Client-facing status page for a GitHub repo: PRs with CI status, Vercel previews, releases, and a read-only share link for clients.",
-  "homepage": "",
+  "homepage": "https://outpost-sandy-ten.vercel.app",
   "topics": [
     "nextjs",
     "typescript",
