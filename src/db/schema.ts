@@ -1,15 +1,30 @@
-import { index, integer, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 /** A GitHub repo the owner has connected through the GitHub App. */
-export const repos = pgTable("repos", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  installationId: integer("installation_id").notNull(),
-  owner: text("owner").notNull(),
-  name: text("name").notNull(),
-  /** Optional Vercel project to pull deployments from (milestone 3). */
-  vercelProjectId: text("vercel_project_id"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const repos = pgTable(
+  "repos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    installationId: integer("installation_id").notNull(),
+    owner: text("owner").notNull(),
+    name: text("name").notNull(),
+    /** Optional Vercel project to pull deployments from (milestone 3). */
+    vercelProjectId: text("vercel_project_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("repos_owner_name_idx").on(t.owner, t.name)],
+);
+
+export type Repo = typeof repos.$inferSelect;
 
 /** Read-only share links. Only the token's hash is stored (see src/lib/share/token.ts). */
 export const shareLinks = pgTable(
