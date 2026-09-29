@@ -36,7 +36,16 @@ export default async function RepoPage(props: PageProps<"/repositories/[id]">) {
   const repo = UUID.test(id) ? await getConnectedRepo(id) : undefined;
   if (!repo) notFound();
 
-  const { open, merged } = await fetchPullRequests(repo);
+  // A repo can lose App access after it's connected; show that instead of crashing the page.
+  const result = await fetchPullRequests(repo).then(
+    (data) => ({ ok: true as const, ...data }),
+    (error: unknown) => ({
+      ok: false as const,
+      message: String((error as Error)?.message ?? error),
+    }),
+  );
+  const open = result.ok ? result.open : [];
+  const merged = result.ok ? result.merged : [];
   const githubUrl = `https://github.com/${repo.owner}/${repo.name}`;
 
   return (
@@ -70,6 +79,16 @@ export default async function RepoPage(props: PageProps<"/repositories/[id]">) {
           </span>
         ))}
       </div>
+
+      {!result.ok && (
+        <div
+          role="alert"
+          className="border-warning/20 bg-warning/8 text-warning rounded-sm border px-3 py-2 font-mono text-[11px]"
+        >
+          Couldn&apos;t load pull requests from GitHub. Check the GitHub App still has access to
+          this repo.
+        </div>
+      )}
 
       <Panel title="Open pull requests" count={open.length} meta="most recently updated">
         <PullRequestTable
