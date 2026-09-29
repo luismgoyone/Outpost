@@ -22,7 +22,8 @@ Auth.js v5 (owner-only GitHub sign-in), Vitest, Playwright, ESLint + Prettier.
 ```
 src/app/            routes (App Router). API routes under src/app/api/
 src/components/ui/  shadcn/ui primitives (add with `pnpm dlx shadcn@latest add <name>`)
-src/components/     app components
+src/components/shell/  app shell: sidebar nav, breadcrumbs, PageHeader, Panel, ComingSoon
+src/components/     shared components: StatusBadge (dot + mono label), CiStatusBadge, RepoChip
 src/lib/github/     GitHub App + Octokit helpers. Keep queries/mappers pure (unit-testable);
                     I/O lives in files that import "server-only"
 src/lib/vercel/     Vercel REST client
@@ -59,6 +60,13 @@ pnpm build && pnpm test:e2e   # before opening a PR, or when touching pages or r
 - Share links (deferred feature): store only `hashShareToken(token)`. Revoked and unknown
   tokens both return 404.
 - Owner-only pages and server actions call `requireOwner()` (`src/lib/owner.ts`) first.
+- UI follows the design tokens in `src/app/globals.css` (dark only). Use semantic classes
+  (`bg-card`, `bg-panel`, `text-muted-foreground`, `text-subtle-foreground`, `text-success`,
+  `text-warning`, `text-destructive`) instead of raw colors. Status is always `StatusBadge`
+  (dot + label), never color alone. Machine data (SHAs, branches, versions, #numbers, dates)
+  uses `font-mono`.
+- New owner screens go under `src/app/(owner)/` so they get the shell, and are added to
+  `src/components/shell/nav-items.ts`.
 - Server components by default. Add `"use client"` only where interactivity requires it.
 - Small commits with clear, conventional messages (`feat:`, `fix:`, `chore:`, `docs:`, `ci:`).
 - Work on a branch and open a PR with `gh pr create`. Never push directly to `main`.
