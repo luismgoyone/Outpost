@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Outpost",
-  description: "A client-facing status page for a GitHub repo.",
+  description: "Your personal engineering control center across GitHub repos.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -1,53 +1,90 @@
-# Outpost — product spec
+# Outpost: product spec
 
 ## What Outpost is
 
-A client-facing status page for a single GitHub repo. A freelance developer connects a
-repo, and Outpost shows, on one page:
+Outpost is a **personal engineering control center** for the developer who owns it. It
+connects to all of your GitHub repositories through a GitHub App and shows, in one dense,
+fast, dark dashboard:
 
-- **Repo stats**: open PRs, merge rate, recent commits
-- **PR list** with CI status
-- **Deployments and preview links** from Vercel
-- **Releases** with their changelog
+- **What needs you**: PRs waiting on your review, your own PRs and their state, stale PRs,
+  failing CI and failed deployments
+- **Pull requests** across every connected repo, with CI status, review state and age
+- **Deployments** and preview links (Vercel, and GitHub deployments)
+- **Releases** and changelogs across repos
+- **Repo health**: open PRs, main-branch CI, last production deploy, latest release and
+  PRs per week for each repo
 
-The key feature is a **read-only share link** that a client can open without logging in to
-see what shipped this week, which previews are ready to review, and what is in progress.
+Outpost is for one person: the owner. It is not a team tool and not client-facing.
 
-## Users
+> **Later:** a client-facing, read-only share link for a single repo (issue #3). It stays out
+> of scope until the owner experience is done.
 
-- **Owner**: the developer. Signs in with GitHub (Auth.js), connects a repo through the
-  GitHub App, links a Vercel project, and creates or revokes share links.
-- **Client**: anyone holding a share link. No account and no login. Read-only.
+## Design
+
+The UI follows the **Engineered Precision** design system (Google Stitch project
+"Outpost Multi-Repository Control Center"):
+
+- Dark only. Slate surfaces (`#0B0F17` canvas, `#111620` panels, `#161B26` cards), 1px
+  `rgba(255,255,255,0.08)` borders, no heavy shadows
+- One accent, `#0EA5E9`, reserved for primary actions and the active navigation item
+- Status colors carry meaning and nothing else: passing `#10B981`, pending `#F59E0B`,
+  failing `#EF4444`, draft/queued `#64748B`. Status is always a dot plus a label, never
+  color alone
+- Geist for interface text; JetBrains Mono for machine data (SHAs, branches, versions,
+  PR numbers, durations, timestamps)
+- High density: 36px table rows, 4px radius on controls, 8px on cards, 24px max title
+- App shell: 240px sidebar (My Work, Overview, Pull Requests, Deployments, Releases,
+  Repositories, Settings), 44px header with breadcrumbs and a ⌘K search trigger
+
+## Screens
+
+| Screen        | Purpose                                                                                |
+| ------------- | -------------------------------------------------------------------------------------- |
+| My Work       | Personal inbox: waiting on my review, my PRs, stale PRs in my repos, failed runs       |
+| Overview      | Attention cards (stale, failing CI, waiting for review, failed deploys) and repo cards |
+| Pull Requests | Every open PR across repos, with filters (repo, mine, needs review, stale, failing CI) |
+| Deployments   | Deployment activity across environments, filterable by repo, environment and status    |
+| Releases      | Release timeline with changelogs across repos                                          |
+| Repositories  | Connected repos; repo detail with PRs, workflow runs, deployments and releases tabs    |
+| Settings      | Connected accounts (GitHub App, Vercel) and, later, alert rules                        |
+
+## Users and access
+
+- **Owner**: signs in with GitHub (Auth.js). Only `OWNER_GITHUB_LOGIN` can sign in.
+- Outpost reads from GitHub through the GitHub App (read-only permissions) and from Vercel
+  with a token. It never writes to your repos in the MVP.
 
 ## Tech stack
 
 - Next.js (App Router) + TypeScript (strict), pnpm
 - Tailwind CSS + shadcn/ui, Recharts for charts
-- GitHub App for repo access (so share links work without the viewer logging in);
-  Octokit with GraphQL for PRs/stats and REST for releases
+- GitHub App for repo access; Octokit with GraphQL for PRs/stats and REST for releases,
+  workflow runs and deployments
 - Vercel REST API for deployments and previews
-- Postgres (Neon) + Drizzle ORM for connected repos, share links, and cached stats
-- Auth.js with GitHub provider, for the owner only
+- Postgres (Neon) + Drizzle ORM for connected repos and cached data
+- Auth.js with GitHub provider, owner only
 - Vitest for unit tests, Playwright for end-to-end tests (video on failure)
 - ESLint + Prettier
 - Deploy target: Vercel
 
-## Security model
-
-- Share tokens are 256-bit random values in base64url. Only a SHA-256 hash is stored, and
-  tokens are compared in constant time.
-- A share link can be revoked (`revoked_at`). A revoked link returns 404, just like an
-  unknown one.
-- Share pages never expose owner data beyond the connected repo, and never make GitHub
-  calls using the viewer's identity.
-
 ## MVP milestones
 
-1. **Connect a repo** via the GitHub App and list its open and merged PRs with CI status.
-2. **Read-only share link**: an unguessable token that can be revoked, no login needed.
-3. **Deployments and preview links** from Vercel.
-4. **Releases** with changelog.
-5. **Stats charts**: merge rate, PRs per week.
-6. **Cache GitHub data in Postgres**; later, GitHub webhooks for live updates.
+1. ✅ **Connect repos** via the GitHub App and list PRs with CI status (#2)
+2. **App shell and design system**: Engineered Precision theme, sidebar and header,
+   restyle existing pages (#11)
+3. **Pull Requests**: cross-repo PR table with review state, age and filters (#12)
+4. **My Work**: personal inbox across repos (#13)
+5. **Overview**: attention cards and repo health cards, including PRs-per-week sparklines (#6)
+6. **Deployments**: Vercel and GitHub deployments across repos (#4)
+7. **Releases**: release timeline and changelogs across repos (#5)
+8. **Repository detail**: tabs for PRs, workflow runs, deployments and releases (#14)
+9. **Cache and live updates**: cache in Postgres, then GitHub webhooks (#7)
+
+## Later
+
+- Actions from Outpost: re-run CI, retry deploys, nudge reviewers (needs write permissions) (#15)
+- Alerts and integrations: Slack digests and alert rules, Linear ticket links (#16)
+- ⌘K command palette (#16)
+- Client-facing read-only share link (#3)
 
 Each milestone is tracked as a GitHub issue.

@@ -1,5 +1,5 @@
 {
-  "description": "Client-facing status page for a GitHub repo: PRs with CI status, Vercel previews, releases, and a read-only share link for clients.",
+  "description": "Personal engineering control center: PRs, CI, deployments and releases across all your GitHub repos in one dense dashboard.",
   "homepage": "https://outpost-sandy-ten.vercel.app",
   "topics": [
     "nextjs",
@@ -8,9 +8,10 @@
     "github-app",
     "vercel",
     "dashboard",
-    "status-page",
     "developer-tools",
-    "freelancing"
+    "ci-cd",
+    "pull-requests",
+    "devops"
   ],
   "defaultBranch": "main",
   "branchProtection": {

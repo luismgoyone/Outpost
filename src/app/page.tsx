@@ -5,10 +5,16 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 const features = [
-  { title: "Pull requests", description: "Open and merged PRs with CI status." },
-  { title: "Previews", description: "Vercel deployments and preview links, ready to review." },
-  { title: "Releases", description: "What shipped, with the changelog." },
-  { title: "Share link", description: "A read-only page your client opens without logging in." },
+  {
+    title: "My Work",
+    description: "PRs waiting on your review, your PRs, stale and failing work.",
+  },
+  {
+    title: "Pull requests",
+    description: "Every open PR across your repos, with CI and review state.",
+  },
+  { title: "Deployments", description: "Production, staging and preview deploys in one place." },
+  { title: "Releases", description: "What shipped where, with changelogs across repos." },
 ];
 
 export default async function Home(props: PageProps<"/">) {
@@ -21,8 +27,8 @@ export default async function Home(props: PageProps<"/">) {
         </Badge>
         <h1 className="text-4xl font-semibold tracking-tight">Outpost</h1>
         <p className="text-muted-foreground max-w-xl text-lg">
-          A client-facing status page for your GitHub repo. Share what shipped this week, which
-          previews are ready to review, and what&apos;s in progress.
+          Your personal engineering control center. Everything that needs you across your GitHub
+          repos, in one dense dashboard.
         </p>
         {error === "not-owner" && (
           <p role="alert" className="text-destructive text-sm">
