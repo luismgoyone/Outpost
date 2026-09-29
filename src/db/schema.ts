@@ -54,5 +54,7 @@ export const statsCache = pgTable(
     data: jsonb("data").notNull(),
     fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("stats_cache_repo_key_idx").on(t.repoId, t.key)],
+  (t) => [uniqueIndex("stats_cache_repo_key_idx").on(t.repoId, t.key)],
 );
+
+export type CacheRow = typeof statsCache.$inferSelect;
