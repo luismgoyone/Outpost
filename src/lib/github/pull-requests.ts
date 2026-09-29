@@ -5,6 +5,8 @@
 
 export type CiStatus = "success" | "failure" | "pending" | "none";
 
+export type ReviewState = "draft" | "approved" | "changes_requested" | "awaiting_review";
+
 export type PullRequest = {
   number: number;
   title: string;
@@ -15,6 +17,14 @@ export type PullRequest = {
   updatedAt: string;
   mergedAt: string | null;
   ciStatus: CiStatus;
+  reviewState: ReviewState;
+  /** Distinct reviewers whose latest opinionated review is an approval. */
+  approvals: number;
+  /** Logins (users) and slugs (teams) whose review is requested. */
+  requestedReviewers: string[];
+  headRefName: string;
+  additions: number;
+  deletions: number;
 };
 
 export type RepoPullRequests = { open: PullRequest[]; merged: PullRequest[] };
@@ -31,6 +41,27 @@ const PULL_REQUEST_FIELDS = /* GraphQL */ `
     author {
       login
       avatarUrl
+    }
+    headRefName
+    additions
+    deletions
+    reviewDecision
+    latestOpinionatedReviews(first: 20) {
+      nodes {
+        state
+      }
+    }
+    reviewRequests(first: 20) {
+      nodes {
+        requestedReviewer {
+          ... on User {
+            login
+          }
+          ... on Team {
+            slug
+          }
+        }
+      }
     }
     commits(last: 1) {
       nodes {
@@ -73,6 +104,8 @@ export const PULL_REQUESTS_QUERY = /* GraphQL */ `
 /** GitHub's StatusState enum, as returned by statusCheckRollup.state. */
 type RollupState = "SUCCESS" | "FAILURE" | "ERROR" | "PENDING" | "EXPECTED";
 
+type ReviewDecision = "APPROVED" | "CHANGES_REQUESTED" | "REVIEW_REQUIRED";
+
 type PullRequestNode = {
   number: number;
   title: string;
@@ -82,6 +115,14 @@ type PullRequestNode = {
   updatedAt: string;
   mergedAt: string | null;
   author: { login: string; avatarUrl: string } | null;
+  headRefName?: string;
+  additions?: number;
+  deletions?: number;
+  reviewDecision?: ReviewDecision | null;
+  latestOpinionatedReviews?: { nodes: Array<{ state: string } | null> | null } | null;
+  reviewRequests?: {
+    nodes: Array<{ requestedReviewer: { login?: string; slug?: string } | null } | null> | null;
+  } | null;
   commits: {
     nodes: Array<{ commit: { statusCheckRollup: { state: RollupState } | null } } | null> | null;
   };
@@ -109,8 +150,24 @@ export function toCiStatus(state: RollupState | null | undefined): CiStatus {
   }
 }
 
+export function toReviewState(
+  isDraft: boolean,
+  decision: ReviewDecision | null | undefined,
+): ReviewState {
+  if (isDraft) return "draft";
+  if (decision === "APPROVED") return "approved";
+  if (decision === "CHANGES_REQUESTED") return "changes_requested";
+  return "awaiting_review";
+}
+
 function toPullRequest(node: PullRequestNode): PullRequest {
   const lastCommit = node.commits.nodes?.at(-1)?.commit;
+  const approvals = compact(node.latestOpinionatedReviews?.nodes).filter(
+    (r) => r.state === "APPROVED",
+  ).length;
+  const requestedReviewers = compact(node.reviewRequests?.nodes)
+    .map((r) => r.requestedReviewer?.login ?? r.requestedReviewer?.slug)
+    .filter((name): name is string => !!name);
   return {
     number: node.number,
     title: node.title,
@@ -121,6 +178,12 @@ function toPullRequest(node: PullRequestNode): PullRequest {
     updatedAt: node.updatedAt,
     mergedAt: node.mergedAt,
     ciStatus: toCiStatus(lastCommit?.statusCheckRollup?.state),
+    reviewState: toReviewState(node.isDraft, node.reviewDecision),
+    approvals,
+    requestedReviewers,
+    headRefName: node.headRefName ?? "",
+    additions: node.additions ?? 0,
+    deletions: node.deletions ?? 0,
   };
 }
 
@@ -136,4 +199,28 @@ export function mapPullRequests(result: PullRequestsQueryResult): RepoPullReques
     .map(toPullRequest)
     .sort((a, b) => (b.mergedAt ?? "").localeCompare(a.mergedAt ?? ""));
   return { open, merged };
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+export const STALE_AFTER_DAYS = 7;
+
+/** An open PR with no activity (updates) for more than 7 days. */
+export function isStale(pr: Pick<PullRequest, "updatedAt" | "mergedAt">, now: Date): boolean {
+  if (pr.mergedAt) return false;
+  return now.getTime() - new Date(pr.updatedAt).getTime() > STALE_AFTER_DAYS * DAY_MS;
+}
+
+/** Compact age like the designs: "45m", "4h", "3d", "2w". */
+export function formatAge(iso: string, now: Date): string {
+  const minutes = Math.max(0, Math.floor((now.getTime() - new Date(iso).getTime()) / 60_000));
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  if (days < 14) return `${days}d`;
+  return `${Math.floor(days / 7)}w`;
+}
+
+export function daysSince(iso: string, now: Date): number {
+  return Math.floor((now.getTime() - new Date(iso).getTime()) / DAY_MS);
 }
