@@ -45,19 +45,19 @@ pnpm test:e2e   # app on :3100, mock GitHub on :4010
 
 All of them are listed with comments in [`.env.example`](.env.example).
 
-| Variable                                | Purpose                                            |
-| --------------------------------------- | -------------------------------------------------- |
-| `GITHUB_APP_ID`                         | GitHub App ID                                      |
-| `GITHUB_APP_PRIVATE_KEY`                | GitHub App private key (PEM)                       |
-| `GITHUB_APP_SLUG`                       | App slug, for the install link                     |
-| `GITHUB_WEBHOOK_SECRET`                 | Verifies GitHub webhook payloads                   |
-| `GITHUB_API_URL`                        | Optional GitHub API base URL (GHES, or e2e mock)   |
-| `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET` | GitHub OAuth client for owner sign-in              |
-| `AUTH_SECRET`                           | Auth.js session secret (`openssl rand -base64 32`) |
-| `OWNER_GITHUB_LOGIN`                    | The only GitHub user allowed to sign in            |
-| `VERCEL_TOKEN`                          | Vercel API token for deployments and previews      |
-| `VERCEL_TEAM_ID`                        | Optional Vercel team ID                            |
-| `DATABASE_URL`                          | Neon Postgres connection string                    |
+| Variable                                | Purpose                                                 |
+| --------------------------------------- | ------------------------------------------------------- |
+| `GITHUB_APP_ID`                         | GitHub App ID                                           |
+| `GITHUB_APP_PRIVATE_KEY`                | GitHub App private key (PEM)                            |
+| `GITHUB_APP_SLUG`                       | App slug, for the install link                          |
+| `GITHUB_WEBHOOK_SECRET`                 | Verifies GitHub webhook payloads                        |
+| `GITHUB_API_URL`                        | Optional GitHub API base URL (GHES, or e2e mock)        |
+| `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET` | GitHub OAuth client for owner sign-in                   |
+| `AUTH_SECRET`                           | Auth.js session secret (`openssl rand -base64 32`)      |
+| `OWNER_GITHUB_LOGIN`                    | The only GitHub user allowed to sign in                 |
+| `VERCEL_TOKEN`                          | Optional, unused for now (deployments come from GitHub) |
+| `VERCEL_TEAM_ID`                        | Optional Vercel team ID                                 |
+| `DATABASE_URL`                          | Neon Postgres connection string                         |
 
 ## Scripts
 
