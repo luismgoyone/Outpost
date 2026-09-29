@@ -26,7 +26,7 @@ export default async function OverviewPage(props: PageProps<"/overview">) {
   const repos = await listConnectedRepos();
   const [{ results, errors }, deploys] = await Promise.all([
     fetchAllPullRequests(repos),
-    fetchAllDeployments(repos, 20),
+    fetchAllDeployments(repos),
   ]);
   const deploymentsByRepo = new Map(deploys.results.map((r) => [r.repo.id, r.deployments]));
   const overview = buildOverview(
