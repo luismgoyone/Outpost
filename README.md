@@ -2,10 +2,9 @@
 
 **Live:** https://outpost-sandy-ten.vercel.app
 
-A client-facing status page for a single GitHub repo. Connect a repo, and Outpost shows your
-PRs with CI status, Vercel deployments and preview links, releases with changelogs, and repo
-stats on one page. Then send your client a **read-only share link**: they see what shipped
-this week, which previews are ready to review, and what's in progress, without logging in.
+Your personal engineering control center. Connect your GitHub repos, and Outpost shows
+everything that needs you in one dense, dark dashboard: PRs waiting on your review, your own
+PRs, failing CI, stale PRs, deployments and preview links, and releases across every repo.
 
 ![Outpost screenshot](docs/images/screenshot.png)
 
@@ -28,7 +27,7 @@ pnpm db:migrate              # once DATABASE_URL is set
 pnpm dev                     # http://localhost:3000
 ```
 
-Then open `/dashboard`, sign in with GitHub as `OWNER_GITHUB_LOGIN`, and connect a repo the
+Then open `/dashboard`, sign in with GitHub as `OWNER_GITHUB_LOGIN`, and connect the repos the
 GitHub App is installed on.
 
 ### End-to-end tests

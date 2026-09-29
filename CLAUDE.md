@@ -2,8 +2,13 @@
 
 # Outpost: project conventions
 
-Outpost is a client-facing status page for one GitHub repo, with a read-only share link.
-The product spec and milestones live in `docs/SPEC.md`. Read it before starting feature work.
+Outpost is the owner's personal engineering control center across all their GitHub repos
+(not client-facing; a client share link is deferred). The product spec, screens and
+milestones live in `docs/SPEC.md`. Read it before starting feature work.
+
+UI designs live in the Google Stitch project "Outpost Multi-Repository Control Center"
+(Stitch MCP server `stitch`). Follow its Engineered Precision design system, summarized in
+`docs/SPEC.md#design`.
 
 ## Stack
 
@@ -51,7 +56,8 @@ pnpm build && pnpm test:e2e   # before opening a PR, or when touching pages or r
 - Never commit secrets. New env vars go in `.env.example` with a comment, and in the README table.
 - Build and tests must pass without any env vars. Create clients lazily (`getDb()`,
   `getGitHubApp()`) and don't read env at module top level.
-- Share links: store only `hashShareToken(token)`. Revoked and unknown tokens both return 404.
+- Share links (deferred feature): store only `hashShareToken(token)`. Revoked and unknown
+  tokens both return 404.
 - Owner-only pages and server actions call `requireOwner()` (`src/lib/owner.ts`) first.
 - Server components by default. Add `"use client"` only where interactivity requires it.
 - Small commits with clear, conventional messages (`feat:`, `fix:`, `chore:`, `docs:`, `ci:`).
