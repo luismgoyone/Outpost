@@ -1,21 +1,11 @@
 import { cn } from "cn";
-import { ExternalLink, FileText, GitBranch } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
 import { RepoSelect } from "@/components/repo-select";
-import { RepoChip } from "@/components/repo-chip";
+import { DeploymentTable } from "@/components/deployment-table";
 import { PageHeader } from "@/components/shell/page-header";
 import { Panel, PanelEmpty } from "@/components/shell/panel";
-import { StatusBadge, type StatusTone } from "@/components/status-badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   applyDeploymentFilters,
   countByStatus,
@@ -25,9 +15,7 @@ import {
   STATUSES,
   type DeploymentRow,
 } from "@/lib/deployment-filters";
-import { formatDuration, type DeployState, type EnvironmentKind } from "@/lib/github/deployments";
 import { fetchAllDeployments } from "@/lib/github/fetch-deployments";
-import { formatAge } from "@/lib/github/pull-requests";
 import { requireOwner } from "@/lib/owner";
 import { listConnectedRepos } from "@/lib/repos";
 
@@ -40,26 +28,11 @@ const ENV_LABEL: Record<(typeof ENVIRONMENTS)[number], string> = {
   preview: "Preview",
 };
 
-const STATUS: Record<DeployState, { label: string; tone: StatusTone }> = {
-  success: { label: "Deployed", tone: "success" },
-  failure: { label: "Failed", tone: "danger" },
-  building: { label: "Building", tone: "info" },
-  inactive: { label: "Superseded", tone: "neutral" },
-  unknown: { label: "Unknown", tone: "neutral" },
-};
-
 const STATUS_FILTER_LABEL = {
   all: "All statuses",
   success: "Success",
   failure: "Failed",
   building: "Building",
-};
-
-const ENV_TONE: Record<EnvironmentKind, StatusTone> = {
-  production: "success",
-  staging: "info",
-  preview: "neutral",
-  other: "neutral",
 };
 
 export default async function DeploymentsPage(props: PageProps<"/deployments">) {
@@ -154,96 +127,7 @@ export default async function DeploymentsPage(props: PageProps<"/deployments">) 
         ) : visible.length === 0 ? (
           <PanelEmpty>No deployments match these filters.</PanelEmpty>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="pl-4">Repository &amp; environment</TableHead>
-                <TableHead>Commit</TableHead>
-                <TableHead className="hidden md:table-cell">Triggered by</TableHead>
-                <TableHead className="hidden lg:table-cell">Duration</TableHead>
-                <TableHead className="pr-4">Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {visible.map(({ repoId, repoName, deployment: d }) => (
-                <TableRow
-                  key={d.id}
-                  className={d.state === "failure" ? "bg-destructive/5" : undefined}
-                >
-                  <TableCell className="pl-4">
-                    <div className="flex flex-col gap-1">
-                      <Link href={`/repositories/${repoId}`}>
-                        <RepoChip name={repoName} />
-                      </Link>
-                      <span className="flex items-center gap-1.5">
-                        <StatusBadge
-                          boxed
-                          tone={ENV_TONE[d.environmentKind]}
-                          label={d.environment}
-                        />
-                        <span className="text-subtle-foreground font-mono text-[11px]">
-                          {formatAge(d.createdAt, now)} ago
-                        </span>
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="w-full max-w-0">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-muted-foreground flex items-center gap-1.5 font-mono text-[11px]">
-                        {d.ref && (
-                          <>
-                            <GitBranch aria-hidden className="size-3" />
-                            <span className="truncate">{d.ref}</span>
-                            <span aria-hidden>·</span>
-                          </>
-                        )}
-                        <span className="bg-panel rounded-sm border px-1">{d.sha.slice(0, 7)}</span>
-                      </span>
-                      <span
-                        className={cn("truncate", d.state === "failure" && "text-destructive")}
-                        title={d.message}
-                      >
-                        {d.message || "—"}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground hidden font-mono text-[11px] md:table-cell">
-                    {d.creator ? `@${d.creator}` : "—"}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground hidden font-mono text-[11px] lg:table-cell">
-                    {formatDuration(d.durationSeconds)}
-                  </TableCell>
-                  <TableCell className="pr-4">
-                    <div className="flex items-center gap-2">
-                      <StatusBadge boxed {...STATUS[d.state]} />
-                      {d.url && (
-                        <a
-                          href={d.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          aria-label={`Visit ${repoName} ${d.environment}`}
-                          className="text-muted-foreground hover:text-foreground"
-                        >
-                          <ExternalLink aria-hidden className="size-3.5" />
-                        </a>
-                      )}
-                      {d.logUrl && (
-                        <a
-                          href={d.logUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          aria-label={`Logs for ${repoName} ${d.environment}`}
-                          className="text-muted-foreground hover:text-foreground"
-                        >
-                          <FileText aria-hidden className="size-3.5" />
-                        </a>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <DeploymentTable rows={visible} now={now} />
         )}
       </Panel>
     </>

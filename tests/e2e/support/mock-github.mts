@@ -7,6 +7,7 @@
  *   billing → Overview (language, release, PR history for sparklines, a failing PR, prod deploy)
  *   marketing → Deployments (production, preview building, staging failed, superseded preview)
  *   platform → Releases (latest + previous + old release, a draft, notes with unsafe HTML/links)
+ *              and repo detail (workflow runs, one deployment); docs → Actions permission denied
  * "legacy" always fails its GraphQL query, to exercise per-repo error handling.
  * Run directly with Node (type stripping): node tests/e2e/support/mock-github.mts
  */
@@ -64,6 +65,41 @@ const releases: Record<string, unknown[]> = {
     release("v2.7.0", 130),
   ],
 };
+
+/** GET /repos/acme/:repo/actions/runs */
+function workflowRuns(repo: string) {
+  if (repo !== "platform") return { total_count: 0, workflow_runs: [] };
+  const run = (
+    id: number,
+    workflowId: number,
+    conclusion: string | null,
+    hoursAgo: number,
+    durSec: number,
+  ) => {
+    const started = Date.now() - hoursAgo * HOUR;
+    return {
+      id,
+      workflow_id: workflowId,
+      name: workflowId === 1 ? "CI / Test & Lint" : "Deploy to Production",
+      path: workflowId === 1 ? ".github/workflows/ci.yml" : ".github/workflows/deploy.yml",
+      event: workflowId === 1 ? "push" : "workflow_dispatch",
+      head_branch: "main",
+      status: conclusion === null ? "in_progress" : "completed",
+      conclusion,
+      run_started_at: new Date(started).toISOString(),
+      created_at: new Date(started).toISOString(),
+      updated_at: new Date(started + durSec * 1000).toISOString(),
+      html_url: `https://github.com/acme/platform/actions/runs/${id}`,
+    };
+  };
+  const ci = Array.from({ length: 12 }, (_, i) =>
+    run(1000 + i, 1, i === 3 ? "failure" : "success", 30 - i * 2, 134),
+  );
+  return {
+    total_count: 14,
+    workflow_runs: [...ci, run(2000, 2, "success", 72, 370), run(2001, 2, "success", 5, 370)],
+  };
+}
 
 /** GET /repos/acme/:repo/compare/:base...:head */
 function compare(repo: string, basehead: string) {
@@ -128,6 +164,7 @@ const deployments: Record<string, unknown[]> = {
     deployment("mk4", "Preview", "INACTIVE", 300, { ref: "old/branch", message: "old preview" }),
   ],
   billing: [deployment("bl1", "Production", "SUCCESS", 42, { durationSec: 70 })],
+  platform: [deployment("pl1", "Production", "SUCCESS", 180, { message: "release v2.8.1" })],
 };
 
 const DAY = 24 * 3600_000;
@@ -146,7 +183,13 @@ function repoMeta(name: string) {
           url: "https://github.com/acme/billing/releases/tag/v1.19.0",
           publishedAt: ago(2 * DAY),
         }
-      : null,
+      : name === "platform"
+        ? {
+            tagName: "v2.8.1",
+            url: "https://github.com/acme/platform/releases/tag/v2.8.1",
+            publishedAt: ago(3 * DAY),
+          }
+        : null,
     // billing: 3 PRs/week for 8 weeks; 4 closed in the last 30 days, 3 of them merged (75%).
     recent: {
       nodes: isBilling
@@ -310,6 +353,13 @@ const server = createServer(async (req, res) => {
   }
   if (route === "GET /installation/repositories") {
     return send(res, 200, { total_count: repositories.length, repositories });
+  }
+  const runsMatch = url.pathname.match(/^\/repos\/acme\/([^/]+)\/actions\/runs$/);
+  if (req.method === "GET" && runsMatch) {
+    if (runsMatch[1] === "docs") {
+      return send(res, 403, { message: "Resource not accessible by integration" });
+    }
+    return send(res, 200, workflowRuns(runsMatch[1]));
   }
   const compareMatch = url.pathname.match(/^\/repos\/acme\/([^/]+)\/compare\/(.+)$/);
   if (req.method === "GET" && compareMatch) {
