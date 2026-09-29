@@ -6,6 +6,7 @@
  *   mobile → My Work (review request, my PR with changes requested, stale PR, failing main)
  *   billing → Overview (language, release, PR history for sparklines, a failing PR, prod deploy)
  *   marketing → Deployments (production, preview building, staging failed, superseded preview)
+ *   platform → Releases (latest + previous + old release, a draft, notes with unsafe HTML/links)
  * "legacy" always fails its GraphQL query, to exercise per-repo error handling.
  * Run directly with Node (type stripping): node tests/e2e/support/mock-github.mts
  */
@@ -26,7 +27,63 @@ const repositories = [
   { id: 5, name: "mobile", full_name: "acme/mobile", owner, private: true },
   { id: 6, name: "billing", full_name: "acme/billing", owner, private: true },
   { id: 7, name: "marketing", full_name: "acme/marketing", owner, private: false },
+  { id: 8, name: "platform", full_name: "acme/platform", owner, private: true },
 ];
+
+function release(tagName: string, daysAgo: number, extra: object = {}) {
+  return {
+    id: `R_${tagName}`,
+    name: null,
+    tagName,
+    url: `https://github.com/acme/platform/releases/tag/${tagName}`,
+    publishedAt: ago(daysAgo * 24 * HOUR),
+    createdAt: ago(daysAgo * 24 * HOUR),
+    isLatest: false,
+    isPrerelease: false,
+    isDraft: false,
+    description: null,
+    author: { login: "sarah-chen" },
+    ...extra,
+  };
+}
+
+const releases: Record<string, unknown[]> = {
+  platform: [
+    release("v2.9.0-draft", 0, { isDraft: true }),
+    release("v2.8.1", 3, {
+      isLatest: true,
+      description: [
+        "## What's changed",
+        "- **feat(auth):** add fine-grained API scope validation (#284)",
+        "- perf(worker): Redis cluster sharding (#281)",
+        "<script>window.__pwned = true</script>",
+        "[click me](javascript:window.__pwned=true)",
+      ].join("\n"),
+    }),
+    release("v2.8.0", 20, { author: { login: "alex-k" } }),
+    release("v2.7.0", 130),
+  ],
+};
+
+/** GET /repos/acme/:repo/compare/:base...:head */
+function compare(repo: string, basehead: string) {
+  const commit = (login: string, message: string) => ({ author: { login }, commit: { message } });
+  const commits =
+    basehead === "v2.8.0...v2.8.1"
+      ? [
+          commit("sarah-chen", "feat(auth): add fine-grained API scope validation (#284)"),
+          commit("alex-k", "perf(worker): Redis cluster sharding (#281)"),
+          commit("marcus-b", "fix(db): pool leak during failover (#279)"),
+          commit("sarah-chen", "chore(deps): upgrade Go runtime (#275)"),
+          ...Array.from({ length: 14 }, (_, i) => commit("alex-k", `wip ${i}`)),
+        ]
+      : [commit("alex-k", "release prep (#200)")];
+  return {
+    total_commits: commits.length,
+    commits,
+    html_url: `https://github.com/acme/${repo}/compare/${basehead}`,
+  };
+}
 
 function deployment(
   id: string,
@@ -192,6 +249,7 @@ const pullRequests: Record<string, { open: unknown[]; merged: unknown[] }> = {
     merged: [],
   },
   marketing: { open: [], merged: [] },
+  platform: { open: [], merged: [] },
   billing: {
     open: [
       pr(88, "Support multi-currency invoicing", "FAILURE", { author: author("dev-sam") }),
@@ -253,6 +311,10 @@ const server = createServer(async (req, res) => {
   if (route === "GET /installation/repositories") {
     return send(res, 200, { total_count: repositories.length, repositories });
   }
+  const compareMatch = url.pathname.match(/^\/repos\/acme\/([^/]+)\/compare\/(.+)$/);
+  if (req.method === "GET" && compareMatch) {
+    return send(res, 200, compare(compareMatch[1], decodeURIComponent(compareMatch[2])));
+  }
   if (route === "POST /graphql") {
     const { query, variables } = (await readJson(req)) as {
       query?: string;
@@ -263,6 +325,10 @@ const server = createServer(async (req, res) => {
         data: { repository: null },
         errors: [{ type: "FORBIDDEN", message: "Resource not accessible by integration" }],
       });
+    }
+    if (query?.includes("RepoReleases")) {
+      const nodes = releases[variables?.name ?? ""] ?? [];
+      return send(res, 200, { data: { repository: { releases: { nodes } } } });
     }
     if (query?.includes("RepoDeployments")) {
       const nodes = deployments[variables?.name ?? ""] ?? [];
