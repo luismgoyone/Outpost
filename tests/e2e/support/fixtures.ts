@@ -1,4 +1,4 @@
-import { test as base, expect } from "@playwright/test";
+import { test as base, expect, type Page } from "@playwright/test";
 import { encode } from "next-auth/jwt";
 
 import { appUrl, E2E } from "./env";
@@ -24,3 +24,19 @@ export const test = base.extend<{ signInAs: (login?: string) => Promise<void> }>
 });
 
 export { expect };
+
+/**
+ * Connect a mock repo, or open it if another test already connected it. Leaves the page on
+ * the repo's detail page.
+ */
+export async function connectRepo(page: Page, fullName: string) {
+  await page.goto("/repositories");
+  const connect = page.getByRole("button", { name: `Connect ${fullName}` });
+  const connected = page
+    .getByRole("list", { name: "Connected repositories" })
+    .getByRole("link", { name: fullName });
+  await expect(connect.or(connected)).toBeVisible();
+  if (await connect.isVisible()) await connect.click();
+  else await connected.click();
+  await expect(page).toHaveURL(/\/repositories\/[0-9a-f-]{36}$/);
+}

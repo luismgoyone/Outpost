@@ -1,4 +1,4 @@
-import { expect, test } from "./support/fixtures";
+import { connectRepo, expect, test } from "./support/fixtures";
 
 test.describe("repositories", () => {
   test("requires sign-in", async ({ page }) => {
@@ -57,8 +57,7 @@ test.describe("repositories", () => {
 
   test("shows an empty state for a repo with no PRs", async ({ page, signInAs }) => {
     await signInAs();
-    await page.goto("/repositories");
-    await page.getByRole("button", { name: "Connect acme/docs" }).click();
+    await connectRepo(page, "acme/docs");
     await expect(page.getByText("No open pull requests.")).toBeVisible();
     await expect(page.getByText("Nothing merged yet.")).toBeVisible();
   });
@@ -66,17 +65,11 @@ test.describe("repositories", () => {
 
 test("repo pages don't leak repo names to visitors", async ({ page, signInAs, context }) => {
   await signInAs();
-  await page.goto("/repositories");
-  await page
-    .getByRole("button", { name: "Connect acme/storefront" })
-    .or(page.getByRole("link", { name: "acme/storefront" }))
-    .first()
-    .click();
-  await expect(page).toHaveURL(/\/repositories\/[0-9a-f-]{36}$/);
+  await connectRepo(page, "acme/docs");
   const repoUrl = page.url();
 
   await context.clearCookies();
   const response = await page.request.get(repoUrl, { maxRedirects: 0 });
   expect(response.status()).toBeGreaterThanOrEqual(300);
-  expect(await response.text()).not.toContain("storefront");
+  expect(await response.text()).not.toContain("acme/docs");
 });
