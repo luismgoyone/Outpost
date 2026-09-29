@@ -83,6 +83,8 @@ describe("mapPullRequests", () => {
       open: [],
       merged: [],
       defaultBranch: null,
+      meta: { isPrivate: false, primaryLanguage: null, latestRelease: null },
+      activity: [],
     });
   });
 });
@@ -125,5 +127,28 @@ describe("default branch", () => {
         repository: { ...empty, defaultBranchRef: { name: "main", target: null } },
       }).defaultBranch,
     ).toBeNull();
+  });
+});
+
+describe("repo meta and activity", () => {
+  it("maps language, latest release, visibility and recent activity", () => {
+    const result = mapPullRequests({
+      repository: {
+        isPrivate: true,
+        primaryLanguage: { name: "Go", color: "#00ADD8" },
+        latestRelease: { tagName: "v2.8.1", url: "https://x/releases/v2.8.1", publishedAt: null },
+        recent: {
+          nodes: [null, { createdAt: "2026-09-01T00:00:00Z", mergedAt: null, closedAt: null }],
+        },
+        open: { nodes: [] },
+        merged: { nodes: [] },
+      },
+    });
+    expect(result.meta).toEqual({
+      isPrivate: true,
+      primaryLanguage: { name: "Go", color: "#00ADD8" },
+      latestRelease: { tagName: "v2.8.1", url: "https://x/releases/v2.8.1", publishedAt: null },
+    });
+    expect(result.activity).toHaveLength(1);
   });
 });

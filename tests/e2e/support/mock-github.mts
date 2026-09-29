@@ -4,6 +4,7 @@
  * owns its repos (tests run in parallel against one database):
  *   storefront → connect-repo flow · docs → empty state and visitor leak · api, legacy → PR screen
  *   mobile → My Work (review request, my PR with changes requested, stale PR, failing main)
+ *   billing → Overview (language, release, PR history for sparklines, a failing PR)
  * "legacy" always fails its GraphQL query, to exercise per-repo error handling.
  * Run directly with Node (type stripping): node tests/e2e/support/mock-github.mts
  */
@@ -19,7 +20,42 @@ const repositories = [
   { id: 3, name: "api", full_name: "acme/api", owner, private: true },
   { id: 4, name: "legacy", full_name: "acme/legacy", owner, private: false },
   { id: 5, name: "mobile", full_name: "acme/mobile", owner, private: true },
+  { id: 6, name: "billing", full_name: "acme/billing", owner, private: true },
 ];
+
+const DAY = 24 * 3600_000;
+
+/** Repo-level fields: visibility, language, latest release and recent PR history. */
+function repoMeta(name: string) {
+  const isBilling = name === "billing";
+  return {
+    isPrivate: repositories.find((r) => r.name === name)?.private ?? false,
+    primaryLanguage: isBilling
+      ? { name: "Go", color: "#00ADD8" }
+      : { name: "TypeScript", color: "#3178c6" },
+    latestRelease: isBilling
+      ? {
+          tagName: "v1.19.0",
+          url: "https://github.com/acme/billing/releases/tag/v1.19.0",
+          publishedAt: ago(2 * DAY),
+        }
+      : null,
+    // billing: 3 PRs/week for 8 weeks; 4 closed in the last 30 days, 3 of them merged (75%).
+    recent: {
+      nodes: isBilling
+        ? Array.from({ length: 24 }, (_, i) => {
+            const created = ago(i * 2.4 * DAY + 3600_000);
+            const closed = i >= 1 && i <= 4 ? ago(i * DAY) : null;
+            return {
+              createdAt: created,
+              closedAt: closed,
+              mergedAt: closed && i !== 4 ? closed : null,
+            };
+          })
+        : [],
+    },
+  };
+}
 
 /** Repos whose default branch CI is failing. */
 const failingMain = new Set(["mobile"]);
@@ -108,6 +144,13 @@ const pullRequests: Record<string, { open: unknown[]; merged: unknown[] }> = {
     ],
     merged: [],
   },
+  billing: {
+    open: [
+      pr(88, "Support multi-currency invoicing", "FAILURE", { author: author("dev-sam") }),
+      pr(89, "Retry webhook deliveries", "SUCCESS", { author: author("sarah-chen") }),
+    ],
+    merged: [],
+  },
   mobile: {
     open: [
       pr(40, "Offline sync queue", "SUCCESS", {
@@ -175,6 +218,7 @@ const server = createServer(async (req, res) => {
       data: {
         repository: data
           ? {
+              ...repoMeta(variables?.name ?? ""),
               defaultBranchRef: defaultBranchRef(variables?.name ?? ""),
               open: { nodes: data.open },
               merged: { nodes: data.merged },

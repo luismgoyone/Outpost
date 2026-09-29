@@ -37,10 +37,26 @@ export type DefaultBranch = {
   committedAt: string;
 };
 
+/** Timestamps of a recent PR, for weekly and merge-rate stats. */
+export type PullRequestActivity = {
+  createdAt: string;
+  mergedAt: string | null;
+  closedAt: string | null;
+};
+
+export type RepoMeta = {
+  isPrivate: boolean;
+  primaryLanguage: { name: string; color: string | null } | null;
+  latestRelease: { tagName: string; url: string; publishedAt: string | null } | null;
+};
+
 export type RepoPullRequests = {
   open: PullRequest[];
   merged: PullRequest[];
   defaultBranch: DefaultBranch | null;
+  meta: RepoMeta;
+  /** The 100 most recently created PRs in any state. */
+  activity: PullRequestActivity[];
 };
 
 const PULL_REQUEST_FIELDS = /* GraphQL */ `
@@ -92,6 +108,23 @@ const PULL_REQUEST_FIELDS = /* GraphQL */ `
 export const PULL_REQUESTS_QUERY = /* GraphQL */ `
   query RepoPullRequests($owner: String!, $name: String!, $openCount: Int!, $mergedCount: Int!) {
     repository(owner: $owner, name: $name) {
+      isPrivate
+      primaryLanguage {
+        name
+        color
+      }
+      latestRelease {
+        tagName
+        url
+        publishedAt
+      }
+      recent: pullRequests(first: 100, orderBy: { field: CREATED_AT, direction: DESC }) {
+        nodes {
+          createdAt
+          mergedAt
+          closedAt
+        }
+      }
       defaultBranchRef {
         name
         target {
@@ -169,6 +202,10 @@ type DefaultBranchRef = {
 
 export type PullRequestsQueryResult = {
   repository: {
+    isPrivate?: boolean;
+    primaryLanguage?: { name: string; color: string | null } | null;
+    latestRelease?: { tagName: string; url: string; publishedAt: string | null } | null;
+    recent?: { nodes: Array<PullRequestActivity | null> | null } | null;
     defaultBranchRef?: DefaultBranchRef;
     open: { nodes: Array<PullRequestNode | null> | null };
     merged: { nodes: Array<PullRequestNode | null> | null };
@@ -233,13 +270,28 @@ function compact<T>(nodes: Array<T | null> | null | undefined): T[] {
 
 /** Map the GraphQL response. Merged PRs are sorted newest merge first. */
 export function mapPullRequests(result: PullRequestsQueryResult): RepoPullRequests {
-  if (!result.repository) return { open: [], merged: [], defaultBranch: null };
+  if (!result.repository) {
+    return { open: [], merged: [], defaultBranch: null, meta: EMPTY_META, activity: [] };
+  }
+  const repo = result.repository;
   const open = compact(result.repository.open.nodes).map(toPullRequest);
   const merged = compact(result.repository.merged.nodes)
     .map(toPullRequest)
     .sort((a, b) => (b.mergedAt ?? "").localeCompare(a.mergedAt ?? ""));
-  return { open, merged, defaultBranch: toDefaultBranch(result.repository.defaultBranchRef) };
+  return {
+    open,
+    merged,
+    defaultBranch: toDefaultBranch(repo.defaultBranchRef),
+    meta: {
+      isPrivate: repo.isPrivate ?? false,
+      primaryLanguage: repo.primaryLanguage ?? null,
+      latestRelease: repo.latestRelease ?? null,
+    },
+    activity: compact(repo.recent?.nodes),
+  };
 }
+
+const EMPTY_META: RepoMeta = { isPrivate: false, primaryLanguage: null, latestRelease: null };
 
 function toDefaultBranch(ref: DefaultBranchRef | undefined): DefaultBranch | null {
   const commit = ref?.target;
