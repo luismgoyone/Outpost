@@ -1,9 +1,6 @@
 import { expect, test } from "./support/fixtures";
 
-const SCREENS = [
-  { label: "Releases", path: "/releases", issue: "#5" },
-  { label: "Settings", path: "/settings", issue: "#16" },
-];
+const SCREENS = [{ label: "Settings", path: "/settings", issue: "#16" }];
 
 test("sidebar navigates every section and marks the active one", async ({ page, signInAs }) => {
   await signInAs();
