@@ -1,0 +1,21 @@
+{
+  "description": "Client-facing status page for a GitHub repo: PRs with CI status, Vercel previews, releases, and a read-only share link for clients.",
+  "homepage": "",
+  "topics": [
+    "nextjs",
+    "typescript",
+    "github-api",
+    "github-app",
+    "vercel",
+    "dashboard",
+    "status-page",
+    "developer-tools",
+    "freelancing"
+  ],
+  "defaultBranch": "main",
+  "branchProtection": {
+    "requiredChecks": ["checks", "e2e"],
+    "requiredApprovals": 0,
+    "enforceAdmins": true
+  }
+}
