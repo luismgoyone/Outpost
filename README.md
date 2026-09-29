@@ -1,5 +1,7 @@
 # Outpost
 
+**Live:** https://outpost-sandy-ten.vercel.app
+
 A client-facing status page for a single GitHub repo. Connect a repo, and Outpost shows your
 PRs with CI status, Vercel deployments and preview links, releases with changelogs, and repo
 stats on one page. Then send your client a **read-only share link**: they see what shipped
