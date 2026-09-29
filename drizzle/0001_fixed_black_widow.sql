@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "repos_owner_name_idx" ON "repos" USING btree ("owner","name");

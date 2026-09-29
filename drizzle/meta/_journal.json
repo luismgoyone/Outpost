@@ -8,6 +8,13 @@
       "when": 1790683016536,
       "tag": "0000_shiny_angel",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790683718816,
+      "tag": "0001_fixed_black_widow",
+      "breakpoints": true
     }
   ]
 }
