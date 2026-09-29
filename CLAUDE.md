@@ -59,7 +59,12 @@ pnpm build && pnpm test:e2e   # before opening a PR, or when touching pages or r
   `getGitHubApp()`) and don't read env at module top level.
 - Share links (deferred feature): store only `hashShareToken(token)`. Revoked and unknown
   tokens both return 404.
-- Owner-only pages and server actions call `requireOwner()` (`src/lib/owner.ts`) first.
+- Owner routes are gated in `src/proxy.ts` (runs before render, real redirects); pages and
+  server actions also call `requireOwner()` (`src/lib/owner.ts`). Add new owner routes to the
+  proxy matcher.
+- Functions run in `sin1` (`vercel.json`) to sit next to the Neon database (ap-southeast-1).
+  Keep them co-located: from iad1 every query cost ~213ms. `/api/health/db` reports the
+  region and DB round trip.
 - All GitHub reads go through `cached(repo, key, load)` (`src/lib/cache.ts`, 5-minute TTL,
   stale copy served if GitHub fails). Add a `CacheKey` for new data types; the webhook and
   Sync button invalidate it. The shell layout must never call GitHub directly.
