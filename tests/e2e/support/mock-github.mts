@@ -178,9 +178,17 @@ function repoMeta(name: string) {
       ? { name: "Go", color: "#00ADD8" }
       : { name: "TypeScript", color: "#3178c6" },
     latestRelease: isBilling
-      ? { tagName: "v1.19.0", url: "https://github.com/acme/billing/releases/tag/v1.19.0", publishedAt: ago(2 * DAY) }
+      ? {
+          tagName: "v1.19.0",
+          url: "https://github.com/acme/billing/releases/tag/v1.19.0",
+          publishedAt: ago(2 * DAY),
+        }
       : name === "platform"
-        ? { tagName: "v2.8.1", url: "https://github.com/acme/platform/releases/tag/v2.8.1", publishedAt: ago(3 * DAY) }
+        ? {
+            tagName: "v2.8.1",
+            url: "https://github.com/acme/platform/releases/tag/v2.8.1",
+            publishedAt: ago(3 * DAY),
+          }
         : null,
     // billing: 3 PRs/week for 8 weeks; 4 closed in the last 30 days, 3 of them merged (75%).
     recent: {
