@@ -1,10 +1,12 @@
+import { ExternalLink, Plus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { signOut } from "@/auth";
+import { RepoChip } from "@/components/repo-chip";
+import { PageHeader } from "@/components/shell/page-header";
+import { Panel, PanelEmpty } from "@/components/shell/panel";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { getInstallUrl } from "@/lib/github/app";
 import { listInstallableRepos } from "@/lib/github/installations";
 import { requireOwner } from "@/lib/owner";
@@ -12,10 +14,10 @@ import { listConnectedRepos } from "@/lib/repos";
 
 import { connectRepoAction } from "./actions";
 
-export const metadata: Metadata = { title: "Dashboard · Outpost" };
+export const metadata: Metadata = { title: "Repositories · Outpost" };
 
-export default async function DashboardPage() {
-  const session = await requireOwner();
+export default async function RepositoriesPage() {
+  await requireOwner("/repositories");
   const [connected, installable] = await Promise.all([
     listConnectedRepos(),
     listInstallableRepos(),
@@ -24,81 +26,71 @@ export default async function DashboardPage() {
   const available = installable.filter((r) => !connectedNames.has(r.fullName));
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-4 py-12 sm:px-6">
-      <header className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-        <form
-          action={async () => {
-            "use server";
-            await signOut({ redirectTo: "/" });
-          }}
-          className="flex items-center gap-3"
-        >
-          <span className="text-muted-foreground text-sm">{session.user.login}</span>
-          <Button variant="outline" size="sm" type="submit">
-            Sign out
-          </Button>
-        </form>
-      </header>
+    <>
+      <PageHeader
+        title="Repositories"
+        count={`${connected.length} connected`}
+        description="Repositories Outpost monitors, and the ones the GitHub App can see."
+        actions={
+          <a href={getInstallUrl()} className={buttonVariants({ variant: "outline" })}>
+            <ExternalLink aria-hidden />
+            Install on more repos
+          </a>
+        }
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Connected repositories</CardTitle>
-          <CardDescription>Repos with an Outpost status page.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {connected.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No repositories connected yet.</p>
-          ) : (
-            <ul aria-label="Connected repositories" className="divide-y">
-              {connected.map((repo) => (
-                <li key={repo.id} className="py-2">
-                  <Link href={`/repos/${repo.id}`} className="font-medium hover:underline">
-                    {repo.owner}/{repo.name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
+      <Panel title="Connected repositories" count={connected.length}>
+        {connected.length === 0 ? (
+          <PanelEmpty>No repositories connected yet. Connect one below.</PanelEmpty>
+        ) : (
+          <ul aria-label="Connected repositories" className="divide-y">
+            {connected.map((repo) => (
+              <li
+                key={repo.id}
+                className="hover:bg-surface-hover/60 flex h-9 items-center gap-3 px-4 transition-colors duration-100"
+              >
+                <Link
+                  href={`/repositories/${repo.id}`}
+                  className="font-mono text-[12px] font-medium hover:underline"
+                >
+                  {repo.owner}/{repo.name}
+                </Link>
+                <a
+                  href={`https://github.com/${repo.owner}/${repo.name}`}
+                  className="text-subtle-foreground hover:text-foreground ml-auto inline-flex items-center gap-1 font-mono text-[11px]"
+                >
+                  GitHub
+                  <ExternalLink aria-hidden className="size-3" />
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Connect a repository</CardTitle>
-          <CardDescription>
-            Repos the Outpost GitHub App can read.{" "}
-            <a href={getInstallUrl()} className="underline underline-offset-4">
-              Install the App on more repos
-            </a>
-            .
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {available.length === 0 ? (
-            <p className="text-muted-foreground text-sm">
-              Nothing new to connect. Install the App on a repo to see it here.
-            </p>
-          ) : (
-            <ul aria-label="Available repositories" className="divide-y">
-              {available.map((repo) => (
-                <li key={repo.fullName} className="flex items-center justify-between gap-4 py-2">
-                  <span className="flex items-center gap-2 font-medium">
-                    {repo.fullName}
-                    {repo.isPrivate && <Badge variant="outline">Private</Badge>}
-                  </span>
-                  <form action={connectRepoAction}>
-                    <input type="hidden" name="fullName" value={repo.fullName} />
-                    <Button size="sm" type="submit" aria-label={`Connect ${repo.fullName}`}>
-                      Connect
-                    </Button>
-                  </form>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
-    </main>
+      <Panel title="Available to connect" count={available.length} meta="via GitHub App">
+        {available.length === 0 ? (
+          <PanelEmpty>
+            Nothing new to connect. Install the GitHub App on a repo to see it here.
+          </PanelEmpty>
+        ) : (
+          <ul aria-label="Available repositories" className="divide-y">
+            {available.map((repo) => (
+              <li key={repo.fullName} className="flex h-10 items-center gap-3 px-4">
+                <RepoChip name={repo.fullName} />
+                {repo.isPrivate && <Badge variant="outline">Private</Badge>}
+                <form action={connectRepoAction} className="ml-auto">
+                  <input type="hidden" name="fullName" value={repo.fullName} />
+                  <Button size="sm" type="submit" aria-label={`Connect ${repo.fullName}`}>
+                    <Plus aria-hidden />
+                    Connect
+                  </Button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
+    </>
   );
 }
