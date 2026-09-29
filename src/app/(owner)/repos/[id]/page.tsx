@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { auth, isOwner } from "@/auth";
 import { PullRequestTable } from "@/components/pull-request-table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { fetchPullRequests } from "@/lib/github/fetch-pull-requests";
@@ -12,6 +13,9 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function generateMetadata(props: PageProps<"/repos/[id]">): Promise<Metadata> {
   const { id } = await props.params;
+  // Metadata renders independently of the page, so gate it too: no repo names for visitors.
+  const session = await auth();
+  if (!isOwner(session?.user?.login)) return { title: "Outpost" };
   const repo = UUID.test(id) ? await getConnectedRepo(id) : undefined;
   return { title: repo ? `${repo.owner}/${repo.name} · Outpost` : "Outpost" };
 }

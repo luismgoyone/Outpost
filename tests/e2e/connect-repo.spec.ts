@@ -54,3 +54,20 @@ test.describe("owner dashboard", () => {
     await expect(page.getByText("Nothing merged yet.")).toBeVisible();
   });
 });
+
+test("repo pages don't leak repo names to visitors", async ({ page, signInAs, context }) => {
+  await signInAs();
+  await page.goto("/dashboard");
+  await page
+    .getByRole("button", { name: "Connect acme/storefront" })
+    .or(page.getByRole("link", { name: "acme/storefront" }))
+    .first()
+    .click();
+  await expect(page).toHaveURL(/\/repos\//);
+  const repoUrl = page.url();
+
+  await context.clearCookies();
+  const response = await page.request.get(repoUrl, { maxRedirects: 0 });
+  expect(response.status()).toBeGreaterThanOrEqual(300);
+  expect(await response.text()).not.toContain("storefront");
+});
