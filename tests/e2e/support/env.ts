@@ -6,6 +6,7 @@ export const E2E = {
     process.env.E2E_DATABASE_URL ?? "postgres://postgres:postgres@localhost:54329/outpost_e2e",
   authSecret: "e2e-only-secret-not-used-anywhere-else-0123456789",
   ownerLogin: "e2e-owner",
+  webhookSecret: "e2e-webhook-secret",
 } as const;
 
 export const appUrl = `http://localhost:${E2E.appPort}`;
