@@ -73,6 +73,25 @@ const releases: Record<string, unknown[]> = {
   ],
 };
 
+/** GET /repos/acme/:repo/contents/.github/workflows[/file]: deploy workflows for shipping detection. */
+const workflowFiles: Record<string, Record<string, string>> = {
+  platform: {
+    "ci.yml":
+      "name: CI\non:\n  push:\n    branches: [main]\njobs:\n  test:\n    steps:\n      - run: npm test\n",
+    "release.yml": [
+      "name: release",
+      "on:",
+      "  release:",
+      "    types: [published]",
+      "jobs:",
+      "  deploy:",
+      "    steps:",
+      '      - run: vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"',
+      "",
+    ].join("\n"),
+  },
+};
+
 /** GET /repos/acme/:repo/actions/runs */
 function workflowRuns(repo: string) {
   if (repo !== "platform") return { total_count: 0, workflow_runs: [] };
@@ -123,6 +142,7 @@ function compare(repo: string, basehead: string) {
       : [commit("alex-k", "release prep (#200)")];
   return {
     total_commits: commits.length,
+    ahead_by: commits.length,
     commits,
     html_url: `https://github.com/acme/${repo}/compare/${basehead}`,
   };
@@ -372,6 +392,23 @@ const server = createServer(async (req, res) => {
       return send(res, 403, { message: "Resource not accessible by integration" });
     }
     return send(res, 200, workflowRuns(runsMatch[1]));
+  }
+  const contentsMatch = url.pathname.match(/^\/repos\/acme\/([^/]+)\/contents\/(.+)$/);
+  if (req.method === "GET" && contentsMatch) {
+    const files = workflowFiles[contentsMatch[1]] ?? {};
+    const path = decodeURIComponent(contentsMatch[2]);
+    if (path === ".github/workflows" && Object.keys(files).length > 0) {
+      return send(
+        res,
+        200,
+        Object.keys(files).map((name) => ({ name, path: `${path}/${name}`, type: "file" })),
+      );
+    }
+    const file = files[path.replace(".github/workflows/", "")];
+    if (file) {
+      return send(res, 200, { type: "file", content: Buffer.from(file).toString("base64") });
+    }
+    return send(res, 404, { message: "Not Found" });
   }
   const compareMatch = url.pathname.match(/^\/repos\/acme\/([^/]+)\/compare\/(.+)$/);
   if (req.method === "GET" && compareMatch) {
