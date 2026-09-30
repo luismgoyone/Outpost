@@ -1,9 +1,10 @@
-import { Box, LogOut, RefreshCw } from "lucide-react";
+import { Box, LogOut } from "lucide-react";
 import Link from "next/link";
 
 import { auth, isOwner, signOut } from "@/auth";
 import { Breadcrumbs } from "@/components/shell/breadcrumbs";
 import { SidebarNav } from "@/components/shell/sidebar-nav";
+import { SyncControl } from "@/components/shell/sync-control";
 import { oldestSync, readAllCached } from "@/lib/cache";
 import { syncedLabel } from "@/lib/cache-policy";
 import type { RepoPullRequests } from "@/lib/github/pull-requests";
@@ -109,24 +110,7 @@ export default async function OwnerLayout({ children }: LayoutProps<"/">) {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="bg-background/80 sticky top-0 z-10 flex h-11 items-center gap-3 border-b px-4 backdrop-blur">
           <Breadcrumbs />
-          {owner && (
-            <form action={syncNowAction} className="ml-auto flex items-center gap-2">
-              <span
-                role="status"
-                className="text-muted-foreground bg-panel flex items-center gap-1.5 rounded-sm border px-2 py-0.5 font-mono text-[11px]"
-              >
-                <span aria-hidden className="bg-success size-1.5 rounded-full" />
-                {syncedLabel(lastSync, now)}
-              </span>
-              <button
-                type="submit"
-                className="bg-secondary flex h-7 items-center gap-1.5 rounded-sm border px-2.5 text-[13px] transition-colors hover:bg-white/8"
-              >
-                <RefreshCw aria-hidden className="size-3.5" />
-                Sync
-              </button>
-            </form>
-          )}
+          {owner && <SyncControl label={syncedLabel(lastSync, now)} action={syncNowAction} />}
         </header>
         <main className="flex w-full flex-1 flex-col gap-6 px-4 py-6 sm:px-6 2xl:px-8">
           {children}
