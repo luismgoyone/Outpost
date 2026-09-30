@@ -2,7 +2,7 @@
 
 export const CACHE_TTL_MS = 5 * 60 * 1000;
 
-export type CacheKey = "pulls" | "deployments" | "releases" | "workflows";
+export type CacheKey = "pulls" | "deployments" | "releases" | "workflows" | "shipping";
 
 export function isFresh(fetchedAt: Date, now: Date, ttlMs = CACHE_TTL_MS): boolean {
   return now.getTime() - fetchedAt.getTime() < ttlMs;

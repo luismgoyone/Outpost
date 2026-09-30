@@ -13,6 +13,7 @@ const repo = (name: string): Repo => ({
   owner: "acme",
   name,
   vercelProjectId: null,
+  deployStrategy: null,
   createdAt: now,
 });
 
