@@ -25,7 +25,11 @@ test("serves GitHub data from the cache until Sync", async ({ page, signInAs }) 
     /Synced (just now|\dm ago)/,
   );
   await page.getByRole("button", { name: "Sync" }).click();
+  // While syncing: spinner label, disabled button.
+  await expect(page.getByRole("status").filter({ hasText: "Syncing…" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Syncing" })).toBeDisabled();
   await expect.poll(() => pullQueryCalls("cachey")).toBeGreaterThan(before);
+  await expect(page.getByRole("button", { name: "Sync", exact: true })).toBeEnabled();
   await expect(page.getByRole("status").filter({ hasText: /Synced/ })).toContainText("just now");
 });
 

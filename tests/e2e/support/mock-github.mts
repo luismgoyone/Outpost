@@ -398,6 +398,8 @@ const server = createServer(async (req, res) => {
     }
     const data = pullRequests[variables?.name ?? ""];
     pullQueryCalls.set(variables?.name ?? "", (pullQueryCalls.get(variables?.name ?? "") ?? 0) + 1);
+    // Slow enough for the e2e test to see the header's "Syncing…" state.
+    if (variables?.name === "cachey") await new Promise((r) => setTimeout(r, 800));
     return send(res, 200, {
       data: {
         repository: data
