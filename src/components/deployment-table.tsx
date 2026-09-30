@@ -37,7 +37,8 @@ export function DeploymentTable({ rows, now }: { rows: DeploymentRow[]; now: Dat
     <Table>
       <TableHeader>
         <TableRow className="hover:bg-transparent">
-          <TableHead className="pl-4">Repository &amp; environment</TableHead>
+          <TableHead className="pl-4">Repository</TableHead>
+          <TableHead>Environment</TableHead>
           <TableHead>Commit</TableHead>
           <TableHead className="hidden md:table-cell">Triggered by</TableHead>
           <TableHead className="hidden lg:table-cell">Duration</TableHead>
@@ -48,17 +49,17 @@ export function DeploymentTable({ rows, now }: { rows: DeploymentRow[]; now: Dat
         {visible.map(({ repoId, repoName, deployment: d }) => (
           <TableRow key={d.id} className={d.state === "failure" ? "bg-destructive/5" : undefined}>
             <TableCell className="pl-4">
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col items-start gap-0.5">
                 <Link href={`/repositories/${repoId}`}>
                   <RepoChip name={repoName} />
                 </Link>
-                <span className="flex items-center gap-1.5">
-                  <StatusBadge boxed tone={ENV_TONE[d.environmentKind]} label={d.environment} />
-                  <span className="text-subtle-foreground font-mono text-[11px]">
-                    {formatAge(d.createdAt, now)} ago
-                  </span>
+                <span className="text-subtle-foreground font-mono text-[11px]">
+                  {formatAge(d.createdAt, now)} ago
                 </span>
               </div>
+            </TableCell>
+            <TableCell>
+              <StatusBadge boxed tone={ENV_TONE[d.environmentKind]} label={d.environment} />
             </TableCell>
             <TableCell className="w-full max-w-0">
               <div className="flex flex-col gap-0.5">
