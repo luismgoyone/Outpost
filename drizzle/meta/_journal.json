@@ -22,6 +22,13 @@
       "when": 1790692628338,
       "tag": "0002_certain_rocket_raccoon",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790752561191,
+      "tag": "0003_brave_pestilence",
+      "breakpoints": true
     }
   ]
 }

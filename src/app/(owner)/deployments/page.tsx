@@ -2,10 +2,12 @@ import { cn } from "cn";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { RepoSelect } from "@/components/repo-select";
 import { DeploymentTable } from "@/components/deployment-table";
+import { RepoChip } from "@/components/repo-chip";
+import { RepoSelect } from "@/components/repo-select";
 import { PageHeader } from "@/components/shell/page-header";
 import { Panel, PanelEmpty } from "@/components/shell/panel";
+import { ShippingBadge, UnreleasedNote } from "@/components/shipping-badge";
 import {
   applyDeploymentFilters,
   countByStatus,
@@ -15,6 +17,7 @@ import {
   STATUSES,
   type DeploymentRow,
 } from "@/lib/deployment-filters";
+import { loadAllShipping } from "@/lib/github/fetch-deploy-strategy";
 import { fetchAllDeployments } from "@/lib/github/fetch-deployments";
 import { requireOwner } from "@/lib/owner";
 import { listConnectedRepos } from "@/lib/repos";
@@ -41,7 +44,11 @@ export default async function DeploymentsPage(props: PageProps<"/deployments">) 
   const now = new Date();
 
   const repos = await listConnectedRepos();
-  const { results, errors, permissionMissing } = await fetchAllDeployments(repos);
+  const [{ results, errors, permissionMissing }, shipping] = await Promise.all([
+    fetchAllDeployments(repos),
+    loadAllShipping(repos),
+  ]);
+  const shippingRepos = repos.filter((r) => !filters.repo || r.name === filters.repo);
   const rows: DeploymentRow[] = results.flatMap(({ repo, deployments }) =>
     deployments.map((deployment) => ({ repoId: repo.id, repoName: repo.name, deployment })),
   );
@@ -70,6 +77,42 @@ export default async function DeploymentsPage(props: PageProps<"/deployments">) 
             ? `Can't read deployments for ${errors.map((e) => e.repo.name).join(", ")}. In your GitHub App settings, set Repository permissions → Deployments to "Read-only", then accept the new permission on the installation.`
             : `Couldn't load deployments for ${errors.map((e) => e.repo.name).join(", ")}.`}
         </div>
+      )}
+
+      {shippingRepos.length > 0 && (
+        <Panel
+          title="How each repo ships"
+          count={shippingRepos.length}
+          meta="detected from workflows & deploys"
+        >
+          <ul aria-label="How each repo ships" className="divide-y">
+            {shippingRepos.map((repo) => {
+              const s = shipping.get(repo.id);
+              return (
+                <li
+                  key={repo.id}
+                  aria-label={repo.name}
+                  className="flex min-h-10 flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2"
+                >
+                  <Link href={`/repositories/${repo.id}`} className="w-40 shrink-0">
+                    <RepoChip name={repo.name} />
+                  </Link>
+                  {s ? (
+                    <>
+                      <ShippingBadge shipping={s} />
+                      <span className="text-muted-foreground text-[13px]">{s.reason}</span>
+                      <span className="ml-auto">
+                        <UnreleasedNote shipping={s} />
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-subtle-foreground text-[13px]">Couldn&apos;t detect</span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </Panel>
       )}
 
       <div className="flex flex-col gap-2">

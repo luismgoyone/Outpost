@@ -38,3 +38,8 @@ export async function findConnectedRepo(owner: string, name: string): Promise<Re
     .limit(1);
   return repo;
 }
+
+/** Set or clear (null) the owner's override for how a repo ships. */
+export async function setDeployStrategy(id: string, strategy: string | null): Promise<void> {
+  await getDb().update(repos).set({ deployStrategy: strategy }).where(eq(repos.id, id));
+}

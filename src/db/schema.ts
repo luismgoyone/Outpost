@@ -19,6 +19,8 @@ export const repos = pgTable(
     name: text("name").notNull(),
     /** Optional Vercel project to pull deployments from (milestone 3). */
     vercelProjectId: text("vercel_project_id"),
+    /** Owner override for how this repo ships: "merge" | "tag" | "manual". Null = detect. */
+    deployStrategy: text("deploy_strategy"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("repos_owner_name_idx").on(t.owner, t.name)],

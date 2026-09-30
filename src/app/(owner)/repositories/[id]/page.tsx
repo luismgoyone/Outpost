@@ -10,15 +10,20 @@ import { DeploymentTable } from "@/components/deployment-table";
 import { PullRequestTable } from "@/components/pull-request-table";
 import { ReleaseCard } from "@/components/release-card";
 import { Panel, PanelEmpty } from "@/components/shell/panel";
+import { ShippingBadge, UnreleasedNote } from "@/components/shipping-badge";
 import { buttonVariants } from "@/components/ui/button";
 import { WorkflowTable } from "@/components/workflow-table";
 import type { Repo } from "@/db/schema";
+import { strategyLabel } from "@/lib/github/deploy-strategy";
+import { loadShipping } from "@/lib/github/fetch-deploy-strategy";
 import { fetchAllDeployments } from "@/lib/github/fetch-deployments";
 import { fetchAllReleases } from "@/lib/github/fetch-releases";
 import { loadPullRequests } from "@/lib/github/fetch-pull-requests";
 import { fetchWorkflows } from "@/lib/github/fetch-workflows";
 import { requireOwner } from "@/lib/owner";
 import { getConnectedRepo } from "@/lib/repos";
+
+import { setShippingAction } from "./actions";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -69,6 +74,7 @@ export default async function RepoPage(props: PageProps<"/repositories/[id]">) {
       message: String((error as Error)?.message ?? error),
     }),
   );
+  const shipping = await loadShipping(repo).catch(() => null);
   const githubUrl = `https://github.com/${repo.owner}/${repo.name}`;
 
   return (
@@ -132,6 +138,38 @@ export default async function RepoPage(props: PageProps<"/repositories/[id]">) {
               <dd>{result.open.length} open PRs</dd>
             </div>
           </dl>
+        )}
+        {shipping && (
+          <div
+            aria-label="How this repo ships"
+            className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t pt-3"
+          >
+            <span className="text-subtle-foreground font-mono text-[11px] uppercase">
+              Ships via
+            </span>
+            <ShippingBadge shipping={shipping} />
+            <span className="text-muted-foreground text-[13px]">{shipping.reason}</span>
+            <UnreleasedNote shipping={shipping} />
+            <form action={setShippingAction} className="ml-auto flex items-center gap-2">
+              <input type="hidden" name="repoId" value={repo.id} />
+              <select
+                name="strategy"
+                aria-label="Deploy strategy"
+                defaultValue={repo.deployStrategy ?? "auto"}
+                className="bg-background focus:border-primary h-7 rounded-sm border px-2 font-mono text-[11px] outline-none"
+              >
+                <option value="auto">
+                  Auto-detect ({strategyLabel(shipping.detected.strategy, shipping.defaultBranch)})
+                </option>
+                <option value="merge">{strategyLabel("merge", shipping.defaultBranch)}</option>
+                <option value="tag">Release tag</option>
+                <option value="manual">Manual</option>
+              </select>
+              <button type="submit" className={buttonVariants({ size: "sm", variant: "outline" })}>
+                Save
+              </button>
+            </form>
+          </div>
         )}
       </section>
 
