@@ -5,9 +5,11 @@ import Link from "next/link";
 
 import { CiStatusBadge } from "@/components/ci-status-badge";
 import { PageHeader } from "@/components/shell/page-header";
+import { ShippingBadge, UnreleasedNote } from "@/components/shipping-badge";
 import { Sparkline } from "@/components/sparkline";
 import { StatusBadge, type StatusTone } from "@/components/status-badge";
 import { buttonVariants } from "@/components/ui/button";
+import { loadAllShipping, type Shipping } from "@/lib/github/fetch-deploy-strategy";
 import { fetchAllDeployments } from "@/lib/github/fetch-deployments";
 import { fetchAllPullRequests } from "@/lib/github/fetch-all-pull-requests";
 import { formatAge } from "@/lib/github/pull-requests";
@@ -24,9 +26,10 @@ export default async function OverviewPage(props: PageProps<"/overview">) {
   const now = new Date();
 
   const repos = await listConnectedRepos();
-  const [{ results, errors }, deploys] = await Promise.all([
+  const [{ results, errors }, deploys, shipping] = await Promise.all([
     fetchAllPullRequests(repos),
     fetchAllDeployments(repos),
+    loadAllShipping(repos),
   ]);
   const deploymentsByRepo = new Map(deploys.results.map((r) => [r.repo.id, r.deployments]));
   const overview = buildOverview(
@@ -170,7 +173,12 @@ export default async function OverviewPage(props: PageProps<"/overview">) {
             className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,17rem),1fr))] gap-3"
           >
             {visibleRepos.map((r) => (
-              <RepoCard key={r.repo.id} overview={r} now={now} />
+              <RepoCard
+                key={r.repo.id}
+                overview={r}
+                now={now}
+                shipping={shipping.get(r.repo.id) ?? null}
+              />
             ))}
           </ul>
         )}
@@ -246,7 +254,15 @@ function AttentionTile({
   );
 }
 
-function RepoCard({ overview, now }: { overview: RepoOverview; now: Date }) {
+function RepoCard({
+  overview,
+  now,
+  shipping,
+}: {
+  overview: RepoOverview;
+  now: Date;
+  shipping: Shipping | null;
+}) {
   const { repo, data, openCount, staleCount, weekly, mergeRate, productionDeploy } = overview;
   const release = data.meta.latestRelease;
   const lastWeek = weekly.at(-1)?.count ?? 0;
@@ -317,6 +333,15 @@ function RepoCard({ overview, now }: { overview: RepoOverview; now: Date }) {
             <CiStatusBadge status={data.defaultBranch?.ciStatus ?? "none"} />
           </dd>
         </div>
+        {shipping && (
+          <div className="col-span-2">
+            <dt className="text-subtle-foreground font-mono text-[11px]">Ships via</dt>
+            <dd className="flex flex-col items-start gap-1">
+              <ShippingBadge shipping={shipping} />
+              <UnreleasedNote shipping={shipping} />
+            </dd>
+          </div>
+        )}
         <div className="col-span-2">
           <dt className="text-subtle-foreground font-mono text-[11px]">Prod deploy</dt>
           <dd className="font-mono text-[12px]">
