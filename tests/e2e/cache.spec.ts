@@ -1,7 +1,7 @@
 import { signWebhookBody } from "../../src/lib/github/webhook-signature";
 
 import { E2E, mockGitHubUrl } from "./support/env";
-import { connectRepo, expect, test } from "./support/fixtures";
+import { connectRepo, expect, slowNextFetch, test } from "./support/fixtures";
 
 async function pullQueryCalls(repo: string): Promise<number> {
   const res = await fetch(`${mockGitHubUrl}/__calls?repo=${repo}`);
@@ -24,6 +24,7 @@ test("serves GitHub data from the cache until Sync", async ({ page, signInAs }) 
   await expect(page.getByRole("status").filter({ hasText: /Synced/ })).toContainText(
     /Synced (just now|\dm ago)/,
   );
+  await slowNextFetch("cachey", 800);
   await page.getByRole("button", { name: "Sync" }).click();
   // While syncing: spinner label, disabled button.
   await expect(page.getByRole("status").filter({ hasText: "Syncing…" })).toBeVisible();

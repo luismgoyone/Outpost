@@ -1,7 +1,7 @@
 import { test as base, expect, type Page } from "@playwright/test";
 import { encode } from "next-auth/jwt";
 
-import { appUrl, E2E } from "./env";
+import { appUrl, E2E, mockGitHubUrl } from "./env";
 
 const COOKIE = "authjs.session-token";
 
@@ -39,4 +39,9 @@ export async function connectRepo(page: Page, fullName: string) {
   if (await connect.isVisible()) await connect.click();
   else await connected.click();
   await expect(page).toHaveURL(/\/repositories\/[0-9a-f-]{36}$/);
+}
+
+/** Make a mock repo's next GitHub fetch slow, to observe a loading state. */
+export async function slowNextFetch(repo: string, ms = 1000) {
+  await fetch(`${mockGitHubUrl}/__slow?repo=${repo}&ms=${ms}`);
 }

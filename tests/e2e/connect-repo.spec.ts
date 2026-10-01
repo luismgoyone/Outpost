@@ -1,4 +1,4 @@
-import { connectRepo, expect, test } from "./support/fixtures";
+import { connectRepo, expect, slowNextFetch, test } from "./support/fixtures";
 
 test.describe("repositories", () => {
   test("requires sign-in", async ({ page }) => {
@@ -72,4 +72,18 @@ test("repo pages don't leak repo names to visitors", async ({ page, signInAs, co
   const response = await page.request.get(repoUrl, { maxRedirects: 0 });
   expect(response.status()).toBeGreaterThanOrEqual(300);
   expect(await response.text()).not.toContain("acme/docs");
+});
+
+test("the Connect button shows a loading state while connecting", async ({ page, signInAs }) => {
+  await signInAs();
+  await page.goto("/repositories");
+  await slowNextFetch("slowpoke", 1200);
+  await page.getByRole("button", { name: "Connect acme/slowpoke" }).click();
+
+  const pending = page.getByRole("button", { name: "Connecting acme/slowpoke" });
+  await expect(pending).toBeDisabled();
+  await expect(pending).toHaveText("Connecting…");
+
+  await expect(page).toHaveURL(/\/repositories\/[0-9a-f-]{36}$/);
+  await expect(page.getByText("Slow PR")).toBeVisible();
 });
