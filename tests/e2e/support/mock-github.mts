@@ -8,8 +8,9 @@
  *   marketing → Deployments (production, preview building, staging failed, superseded preview)
  *   platform → Releases (latest + previous + old release, a draft, notes with unsafe HTML/links)
  *              and repo detail (workflow runs, one deployment); docs → Actions permission denied
- *   cachey → cache + Sync button · infra → webhook invalidation
+ *   cachey → cache + Sync button · infra → webhook invalidation · slowpoke → Connect loading state
  * GET /__calls?repo=name returns how many times a repo's PR query hit this server.
+ * GET /__slow?repo=name&ms=1000 makes that repo's next PR query slow (one shot).
  * "legacy" always fails its GraphQL query, to exercise per-repo error handling.
  * Run directly with Node (type stripping): node tests/e2e/support/mock-github.mts
  */
@@ -33,10 +34,13 @@ const repositories = [
   { id: 8, name: "platform", full_name: "acme/platform", owner, private: true },
   { id: 9, name: "cachey", full_name: "acme/cachey", owner, private: false },
   { id: 10, name: "infra", full_name: "acme/infra", owner, private: false },
+  { id: 11, name: "slowpoke", full_name: "acme/slowpoke", owner, private: false },
 ];
 
 /** PR-query calls per repo, so e2e tests can prove what the cache does. */
 const pullQueryCalls = new Map<string, number>();
+/** GET /__slow?repo=name&ms=1000 makes that repo's next PR query slow (one shot). */
+const armedDelays = new Map<string, number>();
 
 function release(tagName: string, daysAgo: number, extra: object = {}) {
   return {
@@ -321,6 +325,7 @@ const pullRequests: Record<string, { open: unknown[]; merged: unknown[] }> = {
   marketing: { open: [], merged: [] },
   cachey: { open: [pr(1, "Cached PR", "SUCCESS")], merged: [] },
   infra: { open: [pr(2, "Infra PR", "SUCCESS")], merged: [] },
+  slowpoke: { open: [pr(3, "Slow PR", "SUCCESS")], merged: [] },
   platform: { open: [], merged: [] },
   billing: {
     open: [
@@ -367,6 +372,10 @@ const server = createServer(async (req, res) => {
   const route = `${req.method} ${url.pathname}`;
 
   if (route === "GET /health") return send(res, 200, { ok: true });
+  if (route === "GET /__slow") {
+    armedDelays.set(url.searchParams.get("repo") ?? "", Number(url.searchParams.get("ms") ?? 1000));
+    return send(res, 200, { ok: true });
+  }
   if (route === "GET /__calls") {
     return send(res, 200, { calls: pullQueryCalls.get(url.searchParams.get("repo") ?? "") ?? 0 });
   }
@@ -435,8 +444,13 @@ const server = createServer(async (req, res) => {
     }
     const data = pullRequests[variables?.name ?? ""];
     pullQueryCalls.set(variables?.name ?? "", (pullQueryCalls.get(variables?.name ?? "") ?? 0) + 1);
-    // Slow enough for the e2e test to see the header's "Syncing…" state.
-    if (variables?.name === "cachey") await new Promise((r) => setTimeout(r, 800));
+    // One-shot delay armed by a test via /__slow, so loading states are observable without
+    // slowing every page that lists all repos.
+    const delay = armedDelays.get(variables?.name ?? "");
+    if (delay) {
+      armedDelays.delete(variables?.name ?? "");
+      await new Promise((r) => setTimeout(r, delay));
+    }
     return send(res, 200, {
       data: {
         repository: data

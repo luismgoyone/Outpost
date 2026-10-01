@@ -1,4 +1,4 @@
-import { ExternalLink, Plus } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -6,13 +6,14 @@ import { RepoChip } from "@/components/repo-chip";
 import { PageHeader } from "@/components/shell/page-header";
 import { Panel, PanelEmpty } from "@/components/shell/panel";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { getInstallUrl } from "@/lib/github/app";
 import { listInstallableRepos } from "@/lib/github/installations";
 import { requireOwner } from "@/lib/owner";
 import { listConnectedRepos } from "@/lib/repos";
 
 import { connectRepoAction } from "./actions";
+import { ConnectButton } from "./connect-button";
 
 export const metadata: Metadata = { title: "Repositories · Outpost" };
 
@@ -81,10 +82,7 @@ export default async function RepositoriesPage() {
                 {repo.isPrivate && <Badge variant="outline">Private</Badge>}
                 <form action={connectRepoAction} className="ml-auto">
                   <input type="hidden" name="fullName" value={repo.fullName} />
-                  <Button size="sm" type="submit" aria-label={`Connect ${repo.fullName}`}>
-                    <Plus aria-hidden />
-                    Connect
-                  </Button>
+                  <ConnectButton fullName={repo.fullName} />
                 </form>
               </li>
             ))}
